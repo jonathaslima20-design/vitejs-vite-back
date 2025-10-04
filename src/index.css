@@ -1,0 +1,260 @@
+@import './styles/color-picker.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hide content until theme is loaded */
+.theme-not-loaded * {
+  visibility: hidden;
+}
+
+.theme-loaded * {
+  visibility: visible;
+}
+
+/* Loading spinner for initial state */
+.initial-loader {
+  visibility: visible !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.initial-loader::after {
+  content: "";
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--primary);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 47.4% 11.2%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+    --card: 224 71% 4%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Theme transition */
+.theme-transition {
+  @apply transition-colors duration-300;
+}
+
+/* Smooth theme transition for all elements */
+*, *::before, *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Enhanced drag and drop animations */
+.drag-item-entering {
+  animation: dragEnter 0.3s ease-out;
+}
+
+.drag-item-exiting {
+  animation: dragExit 0.3s ease-in;
+}
+
+.drag-placeholder {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+  border: 2px dashed rgba(59, 130, 246, 0.4);
+  border-radius: 12px;
+  animation: placeholderPulse 2s ease-in-out infinite;
+}
+
+.drag-ghost {
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+}
+
+@keyframes dragEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dragExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+}
+
+@keyframes placeholderPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* Drag cursor styles */
+.drag-cursor-grabbing {
+  cursor: grabbing !important;
+}
+
+.drag-cursor-grab {
+  cursor: grab !important;
+}
+
+/* Sliding puzzle specific styles */
+.sliding-puzzle-item {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sliding-puzzle-item:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.sliding-puzzle-dragging {
+  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  filter: brightness(1.1);
+}
+
+.sliding-puzzle-drop-zone {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+  border: 2px dashed rgba(59, 130, 246, 0.4);
+  border-radius: 12px;
+  animation: slidingPuzzlePulse 2s ease-in-out infinite;
+}
+
+@keyframes slidingPuzzlePulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+    border-color: rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.01);
+    border-color: rgba(59, 130, 246, 0.7);
+  }
+}
+
+/* Enhanced drag animations for sliding puzzle */
+.sliding-puzzle-grid {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sliding-puzzle-grid.dragging-over {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(147, 51, 234, 0.05));
+  transform: scale(1.01);
+  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  .drag-item-mobile {
+    touch-action: none;
+    user-select: none;
+  }
+  
+  .drag-handle-mobile {
+    padding: 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+  }
+  
+  .sliding-puzzle-item {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .sliding-puzzle-dragging {
+    transform: scale(1.08) rotate(3deg);
+    filter: brightness(1.15);
+  }
+}
+
+/* Custom scale utilities for logo sizing */
+.scale-130 {
+  transform: scale(1.3);
+}

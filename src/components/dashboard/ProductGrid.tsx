@@ -1,0 +1,320 @@
+import { Link } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { Loader2, GripVertical, ArrowUpDown, CheckSquare, Square, Move } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/utils';
+import type { Product } from '@/types';
+
+import { EnhancedProductGrid } from './EnhancedProductGrid';
+
+interface ProductGridProps {
+  products: Product[];
+  isDragMode: boolean;
+  reordering: boolean;
+  bulkActionLoading: boolean;
+  selectedProducts: Set<string>;
+  updatingProductId: string | null;
+  user: any;
+  onSelectProduct: (productId: string, checked: boolean) => void;
+  onToggleVisibility: (productId: string, currentVisibility: boolean) => Promise<void>;
+  onDragEnd: (result: any) => Promise<void>;
+  onSaveOrder?: () => Promise<void>;
+  onCancelReorder?: () => void;
+}
+
+export function ProductGrid({
+  products,
+  isDragMode,
+  reordering,
+  bulkActionLoading,
+  selectedProducts,
+  updatingProductId,
+  user,
+  onSelectProduct,
+  onToggleVisibility,
+  onDragEnd,
+  onSaveOrder,
+  onCancelReorder,
+}: ProductGridProps) {
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'vendido':
+        return <Badge variant="destructive">Vendido</Badge>;
+      case 'reservado':
+        return <Badge variant="secondary">Reservado</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  // Use enhanced grid for drag mode
+  if (isDragMode) {
+    return (
+      <EnhancedProductGrid
+        products={products}
+        isDragMode={isDragMode}
+        onDragEnd={onDragEnd}
+        onSaveOrder={onSaveOrder || (() => Promise.resolve())}
+        onCancelReorder={onCancelReorder || (() => {})}
+        user={user}
+        reordering={reordering}
+      />
+    );
+  }
+
+  const ProductCard = ({ product, index, isDragMode }: { 
+    product: Product; 
+    index: number; 
+    isDragMode: boolean;
+  }) => {
+    const isSelected = selectedProducts.has(product.id);
+    
+    // Calculate discount information
+    const hasDiscount = product.discounted_price && product.discounted_price < product.price;
+    const displayPrice = hasDiscount ? product.discounted_price : product.price;
+    const originalPrice = hasDiscount ? product.price : null;
+    const discountPercentage = hasDiscount 
+      ? Math.round(((product.price - product.discounted_price!) / product.price) * 100)
+      : null;
+
+    return (
+      <Card className={`h-full hover:shadow-lg transition-all duration-200 group ${isDragMode ? 'cursor-grab active:cursor-grabbing' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+        <CardContent className="p-3 relative">
+          {/* Selection Checkbox - Only show when not in drag mode */}
+          {!isDragMode && (
+            <div className="absolute top-2 left-2 z-10">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelectProduct(product.id, checked as boolean)}
+                className="bg-background/90 backdrop-blur-sm border-2"
+              />
+            </div>
+          )}
+          
+          {/* Drag Handle - Only show when in drag mode */}
+          {isDragMode && (
+            <div className="absolute top-2 right-2 z-10 bg-primary/90 backdrop-blur-sm rounded-md p-1.5 opacity-80 group-hover:opacity-100 transition-all duration-200 border border-primary/30">
+              <GripVertical className="h-4 w-4 text-primary" />
+            </div>
+          )}
+
+          <Link to={`/dashboard/products/${product.id}/edit`} className={isDragMode ? 'pointer-events-none' : ''}>
+            {/* Container da imagem EXATAMENTE como na imagem de referência */}
+            <div className="aspect-square relative mb-3">
+              <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                {product.featured_image_url ? (
+                  <img
+                    src={product.featured_image_url}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-white flex items-center justify-center">
+                    <span className="text-muted-foreground text-xs">Sem imagem</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Discount Badge - Top Right - VERDE */}
+              {hasDiscount && discountPercentage && (
+                <div className="absolute top-1 right-1">
+                  <Badge className="bg-green-600 hover:bg-green-700 text-white border-transparent text-xs px-1 py-0">
+                    -{discountPercentage}%
+                  </Badge>
+                </div>
+              )}
+
+              {/* Status Badge - Only for sold/reserved */}
+              {getStatusBadge(product.status) && (
+                <div className="absolute top-1 right-1" style={{ marginTop: hasDiscount && discountPercentage ? '24px' : '0' }}>
+                  {getStatusBadge(product.status)}
+                </div>
+              )}
+
+              {/* Visibility Indicator */}
+              <div className="absolute top-1 left-1">
+                {product.is_visible_on_storefront ? (
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-xs px-1 py-0">
+                    <CheckSquare className="h-3 w-3 mr-1" />
+                    Visível
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs px-1 py-0">
+                    <Square className="h-3 w-3 mr-1" />
+                    Oculto
+                  </Badge>
+                )}
+              </div>
+            </div>
+            
+            <h2 className="font-semibold mb-2 line-clamp-2 text-xs leading-tight">{product.title}</h2>
+            
+            {/* Price Display with Discount Support */}
+            <div className="mb-3">
+              {hasDiscount ? (
+                <div className="space-y-1">
+                  {/* Original price with strikethrough */}
+                  <div className="text-xs text-muted-foreground line-through">
+                    {product.is_starting_price ? 'A partir de ' : ''}
+                    {formatCurrency(originalPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
+                  </div>
+                  {/* Discounted price */}
+                  <div className="text-sm font-bold text-primary">
+                    {product.is_starting_price ? 'A partir de ' : ''}
+                    {formatCurrency(displayPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm font-bold text-primary">
+                  {product.is_starting_price ? 'A partir de ' : ''}
+                  {formatCurrency(displayPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
+                </div>
+              )}
+
+              {/* Short Description (Promotional phrase) */}
+              {product.short_description && (
+                <p className="text-xs text-muted-foreground mt-2 line-clamp-1 md:line-clamp-2">
+                  {product.short_description}
+                </p>
+              )}
+            </div>
+          </Link>
+
+          {/* Quick Visibility Toggle */}
+          <div className={`flex items-center justify-between pt-2 border-t ${isDragMode ? 'pointer-events-none opacity-50' : ''}`}>
+            <span className="text-xs text-muted-foreground">
+              Vitrine
+            </span>
+            <Switch
+              checked={product.is_visible_on_storefront ?? true}
+              onCheckedChange={() => onToggleVisibility(
+                product.id, 
+                product.is_visible_on_storefront ?? true
+              )}
+              disabled={updatingProductId === product.id || isDragMode}
+              size="sm"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  if (products.length === 0) {
+    return (
+      <Card className="text-center py-12">
+        <CardContent>
+          <h2 className="text-xl font-semibold mb-2">Nenhum produto encontrado</h2>
+          <p className="text-muted-foreground mb-4">
+            Tente ajustar os filtros ou termo de busca
+          </p>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              // This would need to be passed as props or handled by parent
+              console.log('Clear filters clicked');
+            }}
+          >
+            Limpar Filtros
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      {isDragMode ? (
+        // Drag and Drop enabled grid with improved drop zones
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="sliding-puzzle-grid">
+            {(provided, snapshot) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-6 min-h-[400px] transition-all duration-500 ease-in-out ${
+                  snapshot.isDraggingOver 
+                    ? 'bg-gradient-to-br from-primary/5 to-blue-500/5 border-2 border-dashed border-primary/30 rounded-xl shadow-inner scale-[1.02]' 
+                    : 'border-2 border-transparent rounded-xl scale-100'
+                } ${reordering ? 'pointer-events-none opacity-70' : ''}`}
+              >
+                {products.map((product, index) => (
+                  <Draggable 
+                    key={product.id} 
+                    draggableId={product.id} 
+                    index={index}
+                    isDragDisabled={reordering}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className={`h-full transition-all duration-500 ease-out transform-gpu ${
+                          snapshot.isDragging 
+                            ? 'z-50 scale-110 shadow-2xl opacity-95 cursor-grabbing rotate-2 ring-2 ring-primary/50 brightness-110' 
+                            : 'cursor-grab hover:scale-[1.02] hover:shadow-lg hover:z-10 hover:-translate-y-0.5'
+                        }`}
+                        style={provided.draggableProps.style}
+                      >
+                        <div className={`relative ${snapshot.isDragging ? 'animate-bounce' : ''}`}>
+                          <ProductCard product={product} index={index} isDragMode={true} />
+                          {snapshot.isDragging && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-blue-500/20 rounded-xl border-2 border-primary/40 pointer-events-none animate-pulse" />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                
+                {/* Sliding Puzzle Drop Zone Indicator */}
+                {snapshot.isDraggingOver && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-primary/90 text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg animate-bounce">
+                      Solte para reorganizar
+                    </div>
+                  </div>
+                )}
+                
+                <div className={`transition-all duration-500 ${
+                  snapshot.isDraggingOver ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                }`}>
+                  {provided.placeholder}
+                </div>
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      ) : (
+        // Regular grid without drag and drop
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {products.map((product, index) => (
+            <ProductCard 
+              key={product.id} 
+              product={product} 
+              index={index} 
+              isDragMode={false}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Loading overlay during reordering */}
+      {(reordering || bulkActionLoading) && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg p-4 flex items-center gap-3 shadow-lg">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span>
+              {reordering ? 'Atualizando ordem dos produtos...' : 'Processando ação em massa...'}
+            </span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
