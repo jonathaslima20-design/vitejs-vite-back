@@ -43,9 +43,10 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[150px]',
+          'min-h-[150px] focus:outline-none',
           className
         ),
+        'data-placeholder': placeholder || 'Digite aqui...',
       },
     },
     onUpdate: ({ editor }) => {
@@ -63,8 +64,8 @@ export function RichTextEditor({
   };
 
   return (
-    <div className="rounded-md border">
-      <div className="flex flex-wrap gap-1 p-1 border-b bg-muted/50">
+    <div className="rounded-md border bg-background">
+      <div className="flex flex-wrap gap-1 p-2 border-b bg-muted/30">
         <div className="items-center justify-center flex flex-wrap gap-1">
           <button
             type="button"
@@ -152,7 +153,7 @@ export function RichTextEditor({
         </div>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 bg-background">
         <EditorContent editor={editor} />
       </div>
     </div>
