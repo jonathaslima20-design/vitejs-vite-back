@@ -111,6 +111,14 @@ export async function cloneUserCategoriesAndProductsAdmin(
   });
 
   try {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+    if (!currentSession?.access_token) {
+      throw new Error('Sessão inválida ou expirada. Faça login novamente.');
+    }
+
+    console.log('Session valid, invoking edge function...');
+
     const { data, error } = await supabase.functions.invoke('clone-categories-products', {
       body: {
         sourceUserId,
@@ -121,8 +129,19 @@ export async function cloneUserCategoriesAndProductsAdmin(
       },
     });
 
+    console.log('Edge function response:', { data, error });
+
     if (error) {
       console.error('Edge function error:', error);
+
+      if (error.message?.includes('Failed to send a request')) {
+        throw new Error('Não foi possível conectar à função. Verifique se a função edge está deployada corretamente.');
+      }
+
+      if (error.message?.includes('FunctionsHttpError')) {
+        throw new Error(`Erro HTTP na função: ${error.message}`);
+      }
+
       throw new Error(error.message || 'Erro ao clonar dados');
     }
 
@@ -131,6 +150,7 @@ export async function cloneUserCategoriesAndProductsAdmin(
     }
 
     if (!data?.stats) {
+      console.error('Invalid response from edge function:', data);
       throw new Error('Resposta inválida da função');
     }
 
@@ -144,7 +164,7 @@ export async function cloneUserCategoriesAndProductsAdmin(
   } catch (error: any) {
     console.error('Error calling clone-categories-products function:', error);
 
-    if (error.message?.includes('fetch')) {
+    if (error.message?.includes('fetch') || error.message?.includes('network')) {
       throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.');
     }
 
