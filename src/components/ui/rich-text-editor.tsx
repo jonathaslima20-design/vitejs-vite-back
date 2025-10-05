@@ -2,7 +2,6 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import { Toggle } from '@/components/ui/toggle';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Bold,
   Italic,
@@ -62,61 +61,61 @@ export function RichTextEditor({
   return (
     <div className="rounded-md border">
       <div className="flex flex-wrap gap-1 p-1 border-b">
-        <ToggleGroup type="multiple" className="flex flex-wrap gap-1">
-          <ToggleGroupItem
+        <div className="items-center justify-center flex flex-wrap gap-1">
+          <Toggle
             size="sm"
             pressed={editor.isActive('bold')}
-            onClick={() => editor.chain().focus().toggleBold().run()}
+            onPressedChange={() => editor.chain().focus().toggleBold().run()}
             aria-label="Negrito"
           >
             <Bold className="h-4 w-4" />
-          </ToggleGroupItem>
+          </Toggle>
 
-          <ToggleGroupItem
+          <Toggle
             size="sm"
             pressed={editor.isActive('italic')}
-            onClick={() => editor.chain().focus().toggleItalic().run()}
+            onPressedChange={() => editor.chain().focus().toggleItalic().run()}
             aria-label="Itálico"
           >
             <Italic className="h-4 w-4" />
-          </ToggleGroupItem>
+          </Toggle>
 
-          <ToggleGroupItem
+          <Toggle
             size="sm"
             pressed={editor.isActive('underline')}
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
             aria-label="Sublinhado"
           >
             <UnderlineIcon className="h-4 w-4" />
-          </ToggleGroupItem>
+          </Toggle>
 
-          <ToggleGroupItem
+          <Toggle
             size="sm"
             pressed={editor.isActive('heading', { level: 2 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             aria-label="Título"
           >
             <Heading2 className="h-4 w-4" />
-          </ToggleGroupItem>
+          </Toggle>
 
-          <ToggleGroupItem
+          <Toggle
             size="sm"
             pressed={editor.isActive('bulletList')}
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
             aria-label="Lista"
           >
             <List className="h-4 w-4" />
-          </ToggleGroupItem>
+          </Toggle>
 
-          <ToggleGroupItem
+          <Toggle
             size="sm"
             pressed={editor.isActive('orderedList')}
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
             aria-label="Lista Numerada"
           >
             <ListOrdered className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </Toggle>
+        </div>
       </div>
 
       <div className="p-3">
