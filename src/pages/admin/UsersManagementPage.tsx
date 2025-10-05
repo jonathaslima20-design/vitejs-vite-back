@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader as Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,13 +70,34 @@ export default function UsersManagementPage() {
 
     // Search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(user =>
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query) ||
-        (user.slug && user.slug.toLowerCase().includes(query)) ||
-        (user.whatsapp && user.whatsapp.includes(query.replace(/\D/g, '')))
-      );
+      const query = searchQuery.toLowerCase().trim();
+      const numericQuery = query.replace(/\D/g, '');
+
+      filtered = filtered.filter(user => {
+        // Search in name
+        const matchesName = user.name?.toLowerCase().includes(query) || false;
+
+        // Search in email
+        const matchesEmail = user.email?.toLowerCase().includes(query) || false;
+
+        // Search in slug
+        const matchesSlug = user.slug?.toLowerCase().includes(query) || false;
+
+        // Search in WhatsApp (numeric only)
+        const matchesWhatsApp = numericQuery && user.whatsapp
+          ? user.whatsapp.replace(/\D/g, '').includes(numericQuery)
+          : false;
+
+        // Search in phone (numeric only)
+        const matchesPhone = numericQuery && user.phone
+          ? user.phone.replace(/\D/g, '').includes(numericQuery)
+          : false;
+
+        // Search in Instagram
+        const matchesInstagram = user.instagram?.toLowerCase().includes(query) || false;
+
+        return matchesName || matchesEmail || matchesSlug || matchesWhatsApp || matchesPhone || matchesInstagram;
+      });
     }
 
     // Role filter
