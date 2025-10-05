@@ -101,3 +101,49 @@ export async function cloneUserAdmin(
   const result = await response.json();
   return { newUserId: result.newUserId };
 }
+
+/**
+ * Clone categories and products from one user to another using admin privileges
+ */
+export async function cloneUserCategoriesAndProductsAdmin(
+  sourceUserId: string,
+  targetUserId: string,
+  options: {
+    cloneCategories: boolean;
+    cloneProducts: boolean;
+    mergeStrategy: 'merge' | 'replace';
+  }
+): Promise<{ categoriesCloned: number; productsCloned: number; imagesCloned: number }> {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('Não autenticado');
+  }
+
+  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/clone-categories-products`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sourceUserId,
+      targetUserId,
+      cloneCategories: options.cloneCategories,
+      cloneProducts: options.cloneProducts,
+      mergeStrategy: options.mergeStrategy,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Erro ao clonar dados');
+  }
+
+  const result = await response.json();
+  return {
+    categoriesCloned: result.stats.categoriesCloned,
+    productsCloned: result.stats.productsCloned,
+    imagesCloned: result.stats.imagesCloned,
+  };
+}

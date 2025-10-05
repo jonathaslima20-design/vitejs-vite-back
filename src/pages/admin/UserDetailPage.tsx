@@ -55,6 +55,7 @@ import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
 import { cloneUserAdmin } from '@/lib/adminApi';
 import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 import type { SubscriptionPlan, Subscription } from '@/types';
+import { CloneCategoriesProductsDialog } from '@/components/admin/CloneCategoriesProductsDialog';
 
 const planFormSchema = z.object({
   plan_id: z.string().min(1, 'Selecione um plano'),
@@ -113,6 +114,7 @@ export default function UserDetailPage() {
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [cloning, setCloning] = useState(false);
+  const [showCloneCategoriesProductsDialog, setShowCloneCategoriesProductsDialog] = useState(false);
 
   const planForm = useForm<z.infer<typeof planFormSchema>>({
     resolver: zodResolver(planFormSchema),
@@ -429,37 +431,47 @@ export default function UserDetailPage() {
           Voltar
         </Button>
         
-        {/* Clone User Button - Only for admins */}
+        {/* Clone User Buttons - Only for admins */}
         {currentUser?.role === 'admin' && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline">
-                <Copy className="h-4 w-4 mr-2" />
-                Clonar Usuário
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clonar Usuário</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação criará uma cópia completa do usuário "{userDetail.name}" incluindo:
-                  <br />• Perfil e configurações
-                  <br />• Todas as categorias
-                  <br />• Todos os produtos e suas imagens
-                  <br />• Configurações da vitrine
-                  <br />• Configurações de rastreamento
-                  <br /><br />
-                  O processo pode levar alguns minutos dependendo da quantidade de produtos e imagens.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => setShowCloneDialog(true)}>
-                  Continuar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setShowCloneCategoriesProductsDialog(true)}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Receber Dados
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Clonar Usuário Completo
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clonar Usuário</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação criará uma cópia completa do usuário "{userDetail.name}" incluindo:
+                    <br />• Perfil e configurações
+                    <br />• Todas as categorias
+                    <br />• Todos os produtos e suas imagens
+                    <br />• Configurações da vitrine
+                    <br />• Configurações de rastreamento
+                    <br /><br />
+                    O processo pode levar alguns minutos dependendo da quantidade de produtos e imagens.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => setShowCloneDialog(true)}>
+                    Continuar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
         <h1 className="text-3xl font-bold">Detalhes do Usuário</h1>
       </div>
@@ -855,6 +867,19 @@ export default function UserDetailPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Clone Categories and Products Dialog */}
+      <CloneCategoriesProductsDialog
+        open={showCloneCategoriesProductsDialog}
+        onOpenChange={(open) => {
+          setShowCloneCategoriesProductsDialog(open);
+          if (!open) {
+            // Refresh user data after closing
+            fetchUserDetail();
+          }
+        }}
+        defaultTargetUserId={userDetail?.id}
+      />
     </div>
   );
 }
