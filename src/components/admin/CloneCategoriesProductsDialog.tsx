@@ -456,10 +456,7 @@ export function CloneCategoriesProductsDialog({
                   {mergeStrategy === 'merge' ? (
                     <>
                       O usuário de destino tem {targetStats.productsCount} produto(s) e receberá mais {sourceStats.productsCount}.
-                      Total após a clonagem: {targetStats.productsCount + sourceStats.productsCount} de {selectedTargetUser?.listing_limit} produtos.
-                      {targetStats.productsCount + sourceStats.productsCount > (selectedTargetUser?.listing_limit || 0) && (
-                        <span className="text-destructive font-medium"> Limite será excedido!</span>
-                      )}
+                      Total após a clonagem: {targetStats.productsCount + sourceStats.productsCount} produtos.
                     </>
                   ) : (
                     <>

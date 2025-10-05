@@ -261,14 +261,6 @@ Deno.serve(async (req: Request) => {
         .eq('user_id', sourceUserId);
 
       if (sourceProducts && sourceProducts.length > 0) {
-        // Check if target user has enough space
-        const { count: currentProductCount } = await supabaseAdmin
-          .from('products')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', targetUserId);
-
-        const availableSpace = targetUser.listing_limit - (currentProductCount || 0);
-
         if (mergeStrategy === 'replace') {
           // Delete existing products and their images
           const { data: existingProducts } = await supabaseAdmin
@@ -291,18 +283,6 @@ Deno.serve(async (req: Request) => {
 
             console.log('Deleted existing products for replace strategy');
           }
-        } else if (availableSpace < sourceProducts.length) {
-          return new Response(
-            JSON.stringify({
-              error: {
-                message: `Target user does not have enough space. Available: ${availableSpace}, Required: ${sourceProducts.length}`
-              }
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            }
-          );
         }
 
         for (const product of sourceProducts) {
