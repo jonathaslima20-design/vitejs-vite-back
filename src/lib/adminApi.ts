@@ -5,26 +5,21 @@ import { supabase } from './supabase';
  */
 export async function updateUserEmailAdmin(userId: string, newEmail: string): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
-  
+
   if (!session) {
     throw new Error('Não autenticado');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-user-email`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      userId,
-      newEmail,
-    }),
+  const { data, error } = await supabase.functions.invoke('update-user-email', {
+    body: { userId, newEmail },
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Erro ao atualizar email');
+  if (error) {
+    throw new Error(error.message || 'Erro ao atualizar email');
+  }
+
+  if (data?.error) {
+    throw new Error(data.error.message || 'Erro ao atualizar email');
   }
 }
 
@@ -33,26 +28,21 @@ export async function updateUserEmailAdmin(userId: string, newEmail: string): Pr
  */
 export async function changeUserPassword(userId: string, newPassword: string): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
-  
+
   if (!session) {
     throw new Error('Não autenticado');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/change-user-password`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      userId,
-      newPassword,
-    }),
+  const { data, error } = await supabase.functions.invoke('change-user-password', {
+    body: { userId, newPassword },
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Erro ao alterar senha');
+  if (error) {
+    throw new Error(error.message || 'Erro ao alterar senha');
+  }
+
+  if (data?.error) {
+    throw new Error(data.error.message || 'Erro ao alterar senha');
   }
 }
 
@@ -67,7 +57,7 @@ export async function resetUserPassword(userId: string, newPassword: string): Pr
  * Clone user with all associated data using admin privileges
  */
 export async function cloneUserAdmin(
-  originalUserId: string, 
+  originalUserId: string,
   newUserData: {
     email: string;
     password: string;
@@ -76,30 +66,24 @@ export async function cloneUserAdmin(
   }
 ): Promise<{ newUserId: string }> {
   const { data: { session } } = await supabase.auth.getSession();
-  
+
   if (!session) {
     throw new Error('Não autenticado');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/clone-user`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      originalUserId,
-      newUserData,
-    }),
+  const { data, error } = await supabase.functions.invoke('clone-user', {
+    body: { originalUserId, newUserData },
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Erro ao clonar usuário');
+  if (error) {
+    throw new Error(error.message || 'Erro ao clonar usuário');
   }
 
-  const result = await response.json();
-  return { newUserId: result.newUserId };
+  if (data?.error) {
+    throw new Error(data.error.message || 'Erro ao clonar usuário');
+  }
+
+  return { newUserId: data.newUserId };
 }
 
 /**
@@ -120,30 +104,50 @@ export async function cloneUserCategoriesAndProductsAdmin(
     throw new Error('Não autenticado');
   }
 
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/clone-categories-products`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      sourceUserId,
-      targetUserId,
-      cloneCategories: options.cloneCategories,
-      cloneProducts: options.cloneProducts,
-      mergeStrategy: options.mergeStrategy,
-    }),
+  console.log('Calling edge function clone-categories-products:', {
+    sourceUserId,
+    targetUserId,
+    options
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Erro ao clonar dados');
-  }
+  try {
+    const { data, error } = await supabase.functions.invoke('clone-categories-products', {
+      body: {
+        sourceUserId,
+        targetUserId,
+        cloneCategories: options.cloneCategories,
+        cloneProducts: options.cloneProducts,
+        mergeStrategy: options.mergeStrategy,
+      },
+    });
 
-  const result = await response.json();
-  return {
-    categoriesCloned: result.stats.categoriesCloned,
-    productsCloned: result.stats.productsCloned,
-    imagesCloned: result.stats.imagesCloned,
-  };
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(error.message || 'Erro ao clonar dados');
+    }
+
+    if (data?.error) {
+      throw new Error(data.error.message || 'Erro ao clonar dados');
+    }
+
+    if (!data?.stats) {
+      throw new Error('Resposta inválida da função');
+    }
+
+    console.log('Clone completed successfully:', data.stats);
+
+    return {
+      categoriesCloned: data.stats.categoriesCloned || 0,
+      productsCloned: data.stats.productsCloned || 0,
+      imagesCloned: data.stats.imagesCloned || 0,
+    };
+  } catch (error: any) {
+    console.error('Error calling clone-categories-products function:', error);
+
+    if (error.message?.includes('fetch')) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.');
+    }
+
+    throw new Error(error.message || 'Erro ao clonar dados');
+  }
 }
