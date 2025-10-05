@@ -28,7 +28,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Copy, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader as Loader2, Copy, CircleAlert as AlertCircle, CircleCheck as CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cloneUserCategoriesAndProductsAdmin } from '@/lib/adminApi';
 import { toast } from 'sonner';

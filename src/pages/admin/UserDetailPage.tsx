@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Loader2, Phone, Mail, Calendar, User, Shield, Users, CheckCircle, CreditCard, Save, Copy, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Loader as Loader2, Phone, Mail, Calendar, User, Shield, Users, CircleCheck as CheckCircle, CreditCard, Save, Copy, Eye, EyeOff } from 'lucide-react';
 import {
   Form,
   FormControl,
