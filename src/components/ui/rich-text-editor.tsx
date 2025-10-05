@@ -36,16 +36,6 @@ export function RichTextEditor({
         heading: {
           levels: [2],
         },
-        bold: {
-          HTMLAttributes: {
-            class: 'font-bold',
-          },
-        },
-        italic: {
-          HTMLAttributes: {
-            class: 'italic',
-          },
-        },
       }),
       Underline,
     ],

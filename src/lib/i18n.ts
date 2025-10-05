@@ -241,9 +241,7 @@ export const translations = {
     'product.copy_link': 'Copiar enlace del producto',
     'product.available_colors': 'Colores Disponibles',
     'product.available_sizes': 'Tallas Disponibles',
-    'product.available_colors': 'Colores Disponibles',
-    'product.available_sizes': 'Tallas Disponibles',
-    
+
     // Contact and social
     'contact.talk_now': 'Contáctanos ahora',
     'contact.seller': 'Vendedor',
