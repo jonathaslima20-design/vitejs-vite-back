@@ -1,7 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import { Toggle } from '@/components/ui/toggle';
 import {
   Bold,
   Italic,
@@ -58,63 +57,98 @@ export function RichTextEditor({
     return null;
   }
 
+  const handleButtonClick = (e: React.MouseEvent, action: () => void) => {
+    e.preventDefault();
+    action();
+  };
+
   return (
     <div className="rounded-md border">
-      <div className="flex flex-wrap gap-1 p-1 border-b">
+      <div className="flex flex-wrap gap-1 p-1 border-b bg-muted/50">
         <div className="items-center justify-center flex flex-wrap gap-1">
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bold')}
-            onPressedChange={() => editor.chain().focus().toggleBold().run()}
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBold().run())}
+            className={cn(
+              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
+              "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              editor.isActive('bold') ? "bg-accent text-accent-foreground" : "bg-transparent"
+            )}
             aria-label="Negrito"
           >
             <Bold className="h-4 w-4" />
-          </Toggle>
+          </button>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('italic')}
-            onPressedChange={() => editor.chain().focus().toggleItalic().run()}
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleItalic().run())}
+            className={cn(
+              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
+              "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              editor.isActive('italic') ? "bg-accent text-accent-foreground" : "bg-transparent"
+            )}
             aria-label="Itálico"
           >
             <Italic className="h-4 w-4" />
-          </Toggle>
+          </button>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('underline')}
-            onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleUnderline().run())}
+            className={cn(
+              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
+              "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              editor.isActive('underline') ? "bg-accent text-accent-foreground" : "bg-transparent"
+            )}
             aria-label="Sublinhado"
           >
             <UnderlineIcon className="h-4 w-4" />
-          </Toggle>
+          </button>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('heading', { level: 2 })}
-            onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
+            className={cn(
+              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
+              "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              editor.isActive('heading', { level: 2 }) ? "bg-accent text-accent-foreground" : "bg-transparent"
+            )}
             aria-label="Título"
           >
             <Heading2 className="h-4 w-4" />
-          </Toggle>
+          </button>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bulletList')}
-            onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBulletList().run())}
+            className={cn(
+              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
+              "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              editor.isActive('bulletList') ? "bg-accent text-accent-foreground" : "bg-transparent"
+            )}
             aria-label="Lista"
           >
             <List className="h-4 w-4" />
-          </Toggle>
+          </button>
 
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('orderedList')}
-            onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
+          <button
+            type="button"
+            onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleOrderedList().run())}
+            className={cn(
+              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
+              "h-9 px-2.5 hover:bg-muted hover:text-muted-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              editor.isActive('orderedList') ? "bg-accent text-accent-foreground" : "bg-transparent"
+            )}
             aria-label="Lista Numerada"
           >
             <ListOrdered className="h-4 w-4" />
-          </Toggle>
+          </button>
         </div>
       </div>
 
