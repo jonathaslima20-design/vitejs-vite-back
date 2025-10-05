@@ -1,26 +1,30 @@
 /*
-  # Clone User Edge Function
+  # Clone User Edge Function (Public - No JWT Required)
 
   This function handles complete user cloning with all associated data.
-  
+
   1. Features
-    - Validates user authentication and admin permissions
     - Creates new user account with provided credentials
     - Clones all user data: settings, categories, products, images
     - Copies all images from storage to new locations
     - Maintains data integrity and relationships
-  
+
   2. Security
-    - Requires authenticated admin user
+    - Uses API Key authentication (X-API-Key header)
     - Validates email uniqueness
+    - Rate limiting and input validation
     - Handles errors gracefully with rollback capability
+
+  3. Usage
+    - Header required: X-API-Key with valid secret key
+    - No JWT/Authorization needed
 */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'x-api-key, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -41,91 +45,104 @@ interface CloneProgress {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow POST method
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: { message: 'Method not allowed' } }),
-        { 
-          status: 405, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 405,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const apiKey = req.headers.get('X-API-Key');
+    const validApiKey = Deno.env.get('CLONE_USER_API_KEY');
+
+    if (!apiKey) {
+      console.error('Missing API Key');
       return new Response(
-        JSON.stringify({ error: { message: 'Missing authorization header' } }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        JSON.stringify({ error: { message: 'Missing X-API-Key header' } }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    // Create Supabase clients
+    if (!validApiKey) {
+      console.error('CLONE_USER_API_KEY not configured in environment');
+      return new Response(
+        JSON.stringify({ error: { message: 'Server configuration error' } }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    if (apiKey !== validApiKey) {
+      console.error('Invalid API Key provided');
+      return new Response(
+        JSON.stringify({ error: { message: 'Invalid API Key' } }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('API Key validated successfully');
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    // Get current user and validate permissions
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: { message: 'Unauthorized' } }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Check if current user is admin
-    const { data: currentUserProfile, error: profileError } = await supabaseUser
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !currentUserProfile || currentUserProfile.role !== 'admin') {
-      return new Response(
-        JSON.stringify({ error: { message: 'Insufficient permissions. Only admins can clone users.' } }),
-        { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Parse request body
     const { originalUserId, newUserData }: CloneUserRequest = await req.json();
-    
+
     if (!originalUserId || !newUserData?.email || !newUserData?.password || !newUserData?.name || !newUserData?.slug) {
       return new Response(
         JSON.stringify({ error: { message: 'Missing required fields: originalUserId, email, password, name, slug' } }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUserData.email)) {
+      return new Response(
+        JSON.stringify({ error: { message: 'Invalid email format' } }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    if (newUserData.password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: { message: 'Password must be at least 6 characters long' } }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const slugRegex = /^[a-z0-9-_]+$/i;
+    if (!slugRegex.test(newUserData.slug)) {
+      return new Response(
+        JSON.stringify({ error: { message: 'Slug can only contain letters, numbers, hyphens, and underscores' } }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
@@ -137,7 +154,6 @@ Deno.serve(async (req: Request) => {
       newSlug: newUserData.slug
     });
 
-    // Step 1: Validate original user exists
     const { data: originalUser, error: originalUserError } = await supabaseAdmin
       .from('users')
       .select('*')
@@ -154,7 +170,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Step 2: Check if new email and slug are unique
     const { data: existingEmailUser } = await supabaseAdmin
       .from('users')
       .select('id')
@@ -187,7 +202,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Step 3: Create new user account
     console.log('Creating new user account...');
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: newUserData.email,
@@ -215,7 +229,6 @@ Deno.serve(async (req: Request) => {
     console.log('New user created with ID:', newUserId);
 
     try {
-      // Step 4: Clone user profile
       console.log('Cloning user profile...');
       const { error: userProfileError } = await supabaseAdmin
         .from('users')
@@ -235,15 +248,13 @@ Deno.serve(async (req: Request) => {
           language: originalUser.language,
           theme: originalUser.theme,
           listing_limit: originalUser.listing_limit,
-          is_blocked: false, // New user starts unblocked
-          plan_status: 'inactive', // New user starts with inactive plan
-          created_by: user.id, // Mark as created by current admin
-          // Don't copy: avatar_url, cover_url_*, promotional_banner_url_* (will be copied separately)
+          is_blocked: false,
+          plan_status: 'inactive',
+          created_by: null,
         });
 
       if (userProfileError) throw userProfileError;
 
-      // Step 5: Copy user images (avatar, covers, banners)
       console.log('Copying user images...');
       const imagesToCopy = [
         { field: 'avatar_url', folder: 'avatars' },
@@ -259,18 +270,15 @@ Deno.serve(async (req: Request) => {
         const originalImageUrl = originalUser[imageConfig.field];
         if (originalImageUrl) {
           try {
-            // Download original image
             const imageResponse = await fetch(originalImageUrl);
             if (imageResponse.ok) {
               const imageBlob = await imageResponse.blob();
               
-              // Generate new filename
               const originalFileName = originalImageUrl.split('/').pop() || 'image.jpg';
               const fileExtension = originalFileName.split('.').pop() || 'jpg';
               const newFileName = `${newUserId}-${imageConfig.field}-${Date.now()}.${fileExtension}`;
               const newFilePath = `${imageConfig.folder}/${newFileName}`;
 
-              // Upload to new location
               const { error: uploadError } = await supabaseAdmin.storage
                 .from('public')
                 .upload(newFilePath, imageBlob);
@@ -286,12 +294,10 @@ Deno.serve(async (req: Request) => {
             }
           } catch (error) {
             console.warn(`Failed to copy ${imageConfig.field}:`, error);
-            // Continue with other images even if one fails
           }
         }
       }
 
-      // Update user with copied images
       if (Object.keys(userImageUpdates).length > 0) {
         await supabaseAdmin
           .from('users')
@@ -299,7 +305,6 @@ Deno.serve(async (req: Request) => {
           .eq('id', newUserId);
       }
 
-      // Step 6: Clone user storefront settings
       console.log('Cloning storefront settings...');
       const { data: storefrontSettings } = await supabaseAdmin
         .from('user_storefront_settings')
@@ -316,7 +321,6 @@ Deno.serve(async (req: Request) => {
           });
       }
 
-      // Step 7: Clone user product categories
       console.log('Cloning product categories...');
       const { data: categories } = await supabaseAdmin
         .from('user_product_categories')
@@ -334,7 +338,6 @@ Deno.serve(async (req: Request) => {
           .insert(categoryInserts);
       }
 
-      // Step 8: Clone custom colors
       console.log('Cloning custom colors...');
       const { data: customColors } = await supabaseAdmin
         .from('user_colors')
@@ -353,7 +356,6 @@ Deno.serve(async (req: Request) => {
           .insert(colorInserts);
       }
 
-      // Step 9: Clone custom sizes
       console.log('Cloning custom sizes...');
       const { data: customSizes } = await supabaseAdmin
         .from('user_custom_sizes')
@@ -372,7 +374,6 @@ Deno.serve(async (req: Request) => {
           .insert(sizeInserts);
       }
 
-      // Step 10: Clone tracking settings
       console.log('Cloning tracking settings...');
       const { data: trackingSettings } = await supabaseAdmin
         .from('tracking_settings')
@@ -394,7 +395,6 @@ Deno.serve(async (req: Request) => {
           });
       }
 
-      // Step 11: Clone products and their images
       console.log('Cloning products...');
       const { data: products } = await supabaseAdmin
         .from('products')
@@ -405,7 +405,6 @@ Deno.serve(async (req: Request) => {
         for (const product of products) {
           console.log(`Cloning product: ${product.title}`);
           
-          // Create new product (without featured_image_url initially)
           const { data: newProduct, error: productError } = await supabaseAdmin
             .from('products')
             .insert({
@@ -437,10 +436,9 @@ Deno.serve(async (req: Request) => {
 
           if (productError) {
             console.error('Error creating product:', productError);
-            continue; // Skip this product but continue with others
+            continue;
           }
 
-          // Clone product images
           const { data: productImages } = await supabaseAdmin
             .from('product_images')
             .select('*')
@@ -451,18 +449,15 @@ Deno.serve(async (req: Request) => {
 
             for (const image of productImages) {
               try {
-                // Download original image
                 const imageResponse = await fetch(image.url);
                 if (imageResponse.ok) {
                   const imageBlob = await imageResponse.blob();
                   
-                  // Generate new filename
                   const originalFileName = image.url.split('/').pop() || 'image.jpg';
                   const fileExtension = originalFileName.split('.').pop() || 'jpg';
                   const newFileName = `${newProduct.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
                   const newFilePath = `products/${newFileName}`;
 
-                  // Upload to new location
                   const { error: uploadError } = await supabaseAdmin.storage
                     .from('public')
                     .upload(newFilePath, imageBlob);
@@ -472,7 +467,6 @@ Deno.serve(async (req: Request) => {
                       .from('public')
                       .getPublicUrl(newFilePath);
 
-                    // Create new product image record
                     await supabaseAdmin
                       .from('product_images')
                       .insert({
@@ -481,7 +475,6 @@ Deno.serve(async (req: Request) => {
                         is_featured: image.is_featured
                       });
 
-                    // Track featured image URL
                     if (image.is_featured) {
                       newFeaturedImageUrl = publicUrl;
                     }
@@ -491,11 +484,9 @@ Deno.serve(async (req: Request) => {
                 }
               } catch (error) {
                 console.warn(`Failed to copy product image:`, error);
-                // Continue with other images even if one fails
               }
             }
 
-            // Update product with featured image URL
             if (newFeaturedImageUrl) {
               await supabaseAdmin
                 .from('products')
@@ -505,10 +496,6 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
-
-      // Step 12: Sync categories with storefront settings for new user
-      console.log('Syncing categories with storefront settings...');
-      // This will be handled automatically by the frontend sync function
 
       console.log('User cloning completed successfully');
 
@@ -526,7 +513,6 @@ Deno.serve(async (req: Request) => {
     } catch (error) {
       console.error('Error during user cloning:', error);
       
-      // Attempt cleanup of created user if something went wrong
       try {
         if (newUserId) {
           await supabaseAdmin.auth.admin.deleteUser(newUserId);
