@@ -29,13 +29,11 @@ interface UpdateEmailRequest {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow POST method
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: { message: 'Method not allowed' } }),
@@ -46,7 +44,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -58,13 +55,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create Supabase client with service role key for admin operations
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Create client with user token for authorization checks
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -77,7 +72,6 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    // Get current user
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
@@ -89,7 +83,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse request body
     const { userId, newEmail }: UpdateEmailRequest = await req.json();
     if (!userId || !newEmail) {
       return new Response(
@@ -101,7 +94,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newEmail)) {
       return new Response(
@@ -113,7 +105,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get current user's profile
     const { data: currentUserProfile, error: profileError } = await supabaseUser
       .from('users')
       .select('role')
@@ -130,7 +121,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if user is admin
     if (currentUserProfile.role !== 'admin') {
       return new Response(
         JSON.stringify({ error: { message: 'Insufficient permissions. Only admins can update user emails.' } }),
@@ -141,7 +131,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get target user's profile
     const { data: targetUser, error: targetError } = await supabaseAdmin
       .from('users')
       .select('email')
@@ -158,7 +147,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if the new email is already in use by another user
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('users')
       .select('id')
@@ -186,12 +174,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Update email in Supabase Auth with admin privileges
     const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { 
         email: newEmail,
-        email_confirm: true // This bypasses email confirmation
+        email_confirm: true
       }
     );
 
@@ -206,7 +193,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Update email in the users table
     const { error: dbUpdateError } = await supabaseAdmin
       .from('users')
       .update({ email: newEmail })
@@ -214,7 +200,6 @@ Deno.serve(async (req: Request) => {
 
     if (dbUpdateError) {
       console.error('Error updating user email in database:', dbUpdateError);
-      // Try to revert the auth change if database update fails
       await supabaseAdmin.auth.admin.updateUserById(
         userId,
         { email: targetUser.email }

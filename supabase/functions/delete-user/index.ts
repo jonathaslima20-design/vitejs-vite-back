@@ -28,13 +28,11 @@ interface DeleteUserRequest {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow DELETE method
     if (req.method !== 'DELETE') {
       return new Response(
         JSON.stringify({ error: { message: 'Method not allowed' } }),
@@ -45,7 +43,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -57,13 +54,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create Supabase client with service role key for admin operations
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Create client with user token for authorization checks
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -76,7 +71,6 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    // Get current user
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
@@ -88,7 +82,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse request body
     const { userId }: DeleteUserRequest = await req.json();
     if (!userId) {
       return new Response(
@@ -100,7 +93,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get current user's profile
     const { data: currentUserProfile, error: profileError } = await supabaseUser
       .from('users')
       .select('role')
@@ -117,7 +109,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get target user's profile
     const { data: targetUser, error: targetError } = await supabaseAdmin
       .from('users')
       .select('role, created_by')
@@ -134,11 +125,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check permissions
     const canDelete = 
-      // Admin can delete non-admin users
       (currentUserProfile.role === 'admin' && targetUser.role !== 'admin') ||
-      // Partners can delete users they created
       (currentUserProfile.role === 'parceiro' && targetUser.created_by === user.id);
 
     if (!canDelete) {
@@ -151,7 +139,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Delete user from auth (this will cascade to the users table due to triggers)
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     
     if (deleteAuthError) {
@@ -165,7 +152,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Also delete from users table to ensure cleanup
     const { error: deleteDbError } = await supabaseAdmin
       .from('users')
       .delete()
@@ -173,7 +159,6 @@ Deno.serve(async (req: Request) => {
 
     if (deleteDbError) {
       console.error('Error deleting user from database:', deleteDbError);
-      // Don't return error here as auth deletion succeeded
     }
 
     return new Response(

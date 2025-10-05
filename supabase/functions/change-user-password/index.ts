@@ -29,13 +29,11 @@ interface ChangePasswordRequest {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow POST method
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: { message: 'Method not allowed' } }),
@@ -46,7 +44,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -58,13 +55,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create Supabase client with service role key for admin operations
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Create client with user token for authorization checks
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -77,7 +72,6 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    // Get current user
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
@@ -89,7 +83,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse request body
     const { userId, newPassword }: ChangePasswordRequest = await req.json();
     if (!userId || !newPassword) {
       return new Response(
@@ -101,7 +94,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Validate password length
     if (newPassword.length < 6) {
       return new Response(
         JSON.stringify({ error: { message: 'Password must be at least 6 characters long' } }),
@@ -112,7 +104,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get current user's profile
     const { data: currentUserProfile, error: profileError } = await supabaseUser
       .from('users')
       .select('role')
@@ -129,7 +120,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get target user's profile
     const { data: targetUser, error: targetError } = await supabaseAdmin
       .from('users')
       .select('role, created_by, email')
@@ -146,11 +136,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check permissions
     const canChangePassword = 
-      // Admin can change any user's password
       (currentUserProfile.role === 'admin') ||
-      // Partners can change passwords for users they created
       (currentUserProfile.role === 'parceiro' && targetUser.created_by === user.id);
 
     if (!canChangePassword) {
@@ -163,7 +150,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Update password using admin privileges
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { password: newPassword }

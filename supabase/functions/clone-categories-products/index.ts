@@ -34,13 +34,11 @@ interface CloneRequest {
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Only allow POST method
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: { message: 'Method not allowed' } }),
@@ -51,7 +49,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -63,7 +60,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create Supabase clients
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -81,7 +77,6 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    // Get current user and validate permissions
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
@@ -93,7 +88,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if current user is admin
     const { data: currentUserProfile, error: profileError } = await supabaseUser
       .from('users')
       .select('role')
@@ -110,7 +104,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse request body
     const {
       sourceUserId,
       targetUserId,
@@ -157,7 +150,6 @@ Deno.serve(async (req: Request) => {
       mergeStrategy
     });
 
-    // Step 1: Validate both users exist
     const { data: sourceUser, error: sourceUserError } = await supabaseAdmin
       .from('users')
       .select('id, name, email')
@@ -194,7 +186,6 @@ Deno.serve(async (req: Request) => {
     let productsCloned = 0;
     let imagesCloned = 0;
 
-    // Step 2: Clone categories if requested
     if (cloneCategories) {
       console.log('Cloning product categories...');
 
@@ -205,7 +196,6 @@ Deno.serve(async (req: Request) => {
 
       if (sourceCategories && sourceCategories.length > 0) {
         if (mergeStrategy === 'replace') {
-          // Delete existing categories
           await supabaseAdmin
             .from('user_product_categories')
             .delete()
@@ -214,7 +204,6 @@ Deno.serve(async (req: Request) => {
           console.log('Deleted existing categories for replace strategy');
         }
 
-        // Get existing category names for merge strategy
         const { data: existingCategories } = await supabaseAdmin
           .from('user_product_categories')
           .select('name')
@@ -224,7 +213,6 @@ Deno.serve(async (req: Request) => {
           existingCategories?.map(cat => cat.name.toLowerCase()) || []
         );
 
-        // Filter out duplicates if using merge strategy
         const categoriesToInsert = mergeStrategy === 'merge'
           ? sourceCategories.filter(cat => !existingCategoryNames.has(cat.name.toLowerCase()))
           : sourceCategories;
@@ -251,7 +239,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 3: Clone products if requested
     if (cloneProducts) {
       console.log('Cloning products...');
 
@@ -262,20 +249,17 @@ Deno.serve(async (req: Request) => {
 
       if (sourceProducts && sourceProducts.length > 0) {
         if (mergeStrategy === 'replace') {
-          // Delete existing products and their images
           const { data: existingProducts } = await supabaseAdmin
             .from('products')
             .select('id')
             .eq('user_id', targetUserId);
 
           if (existingProducts && existingProducts.length > 0) {
-            // Delete product images
             await supabaseAdmin
               .from('product_images')
               .delete()
               .in('product_id', existingProducts.map(p => p.id));
 
-            // Delete products
             await supabaseAdmin
               .from('products')
               .delete()
@@ -288,7 +272,6 @@ Deno.serve(async (req: Request) => {
         for (const product of sourceProducts) {
           console.log(`Cloning product: ${product.title}`);
 
-          // Create new product (without featured_image_url initially)
           const { data: newProduct, error: productError } = await supabaseAdmin
             .from('products')
             .insert({
@@ -325,7 +308,6 @@ Deno.serve(async (req: Request) => {
 
           productsCloned++;
 
-          // Clone product images
           const { data: productImages } = await supabaseAdmin
             .from('product_images')
             .select('*')
@@ -336,18 +318,15 @@ Deno.serve(async (req: Request) => {
 
             for (const image of productImages) {
               try {
-                // Download original image
                 const imageResponse = await fetch(image.url);
                 if (imageResponse.ok) {
                   const imageBlob = await imageResponse.blob();
 
-                  // Generate new filename
                   const originalFileName = image.url.split('/').pop() || 'image.jpg';
                   const fileExtension = originalFileName.split('.').pop() || 'jpg';
                   const newFileName = `${newProduct.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
                   const newFilePath = `products/${newFileName}`;
 
-                  // Upload to new location
                   const { error: uploadError } = await supabaseAdmin.storage
                     .from('public')
                     .upload(newFilePath, imageBlob);
@@ -357,7 +336,6 @@ Deno.serve(async (req: Request) => {
                       .from('public')
                       .getPublicUrl(newFilePath);
 
-                    // Create new product image record
                     await supabaseAdmin
                       .from('product_images')
                       .insert({
@@ -366,7 +344,6 @@ Deno.serve(async (req: Request) => {
                         is_featured: image.is_featured
                       });
 
-                    // Track featured image URL
                     if (image.is_featured) {
                       newFeaturedImageUrl = publicUrl;
                     }
@@ -380,7 +357,6 @@ Deno.serve(async (req: Request) => {
               }
             }
 
-            // Update product with featured image URL
             if (newFeaturedImageUrl) {
               await supabaseAdmin
                 .from('products')
