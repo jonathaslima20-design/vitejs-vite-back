@@ -5,6 +5,11 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Edge Functions Configuration
+[[edge_functions]]
+  path = "/*"
+  function = "meta-handler"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
