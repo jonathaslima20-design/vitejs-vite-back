@@ -9,18 +9,12 @@
  * @param apiKey - The API Key for authentication (X-API-Key header)
  * @param sourceUserId - ID of the user to copy from
  * @param targetUserId - ID of the user to copy to
- * @param options - Copy options
  * @returns Promise with copy statistics
  */
 export async function copyProductsPublic(
   apiKey: string,
   sourceUserId: string,
-  targetUserId: string,
-  options: {
-    cloneCategories: boolean;
-    cloneProducts: boolean;
-    mergeStrategy: 'merge' | 'replace';
-  }
+  targetUserId: string
 ): Promise<{ categoriesCloned: number; productsCloned: number; imagesCloned: number }> {
   if (!apiKey) {
     throw new Error('API Key é obrigatória');
@@ -43,9 +37,6 @@ export async function copyProductsPublic(
       body: JSON.stringify({
         sourceUserId,
         targetUserId,
-        cloneCategories: options.cloneCategories,
-        cloneProducts: options.cloneProducts,
-        mergeStrategy: options.mergeStrategy,
       }),
     });
 
@@ -89,15 +80,14 @@ export async function copyProductsPublic(
  */
 export async function copyProductsAdmin(
   sourceUserId: string,
-  targetUserId: string,
-  options: {
-    cloneCategories: boolean;
-    cloneProducts: boolean;
-    mergeStrategy: 'merge' | 'replace';
-  }
+  targetUserId: string
 ): Promise<{ categoriesCloned: number; productsCloned: number; imagesCloned: number }> {
   // Import the existing admin function
   const { cloneUserCategoriesAndProductsAdmin } = await import('./adminApi');
   
-  return cloneUserCategoriesAndProductsAdmin(sourceUserId, targetUserId, options);
+  return cloneUserCategoriesAndProductsAdmin(sourceUserId, targetUserId, {
+    cloneCategories: true,
+    cloneProducts: true,
+    mergeStrategy: 'merge'
+  });
 }

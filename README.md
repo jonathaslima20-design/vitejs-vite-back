@@ -23,19 +23,13 @@ X-API-Key: [SUA_API_KEY]
 ```json
 {
   "sourceUserId": "uuid-do-usuario-origem",
-  "targetUserId": "uuid-do-usuario-destino",
-  "cloneCategories": true,
-  "cloneProducts": true,
-  "mergeStrategy": "merge"
+  "targetUserId": "uuid-do-usuario-destino"
 }
 ```
 
 #### Parâmetros
 - `sourceUserId`: ID do usuário de onde copiar os dados
 - `targetUserId`: ID do usuário para onde copiar os dados
-- `cloneCategories`: Se deve copiar as categorias (boolean)
-- `cloneProducts`: Se deve copiar os produtos (boolean)
-- `mergeStrategy`: "merge" (mesclar) ou "replace" (substituir)
 
 #### Resposta de Sucesso
 ```json
@@ -58,10 +52,7 @@ curl -X POST \
   -H "X-API-Key: [SUA_API_KEY]" \
   -d '{
     "sourceUserId": "123e4567-e89b-12d3-a456-426614174000",
-    "targetUserId": "987fcdeb-51a2-43d7-8f9e-123456789abc",
-    "cloneCategories": true,
-    "cloneProducts": true,
-    "mergeStrategy": "merge"
+    "targetUserId": "987fcdeb-51a2-43d7-8f9e-123456789abc"
   }'
 ```
 
@@ -77,9 +68,7 @@ COPY_PRODUCTS_API_KEY=sua_chave_secreta_aqui
 1. **Cópia de Categorias**: Copia todas as categorias do usuário de origem
 2. **Cópia de Produtos**: Copia todos os produtos com metadados completos
 3. **Cópia de Imagens**: Baixa e re-upload todas as imagens para novos arquivos
-4. **Estratégias de Mesclagem**:
-   - `merge`: Adiciona aos dados existentes (padrão)
-   - `replace`: Remove todos os dados existentes antes de copiar
+4. **Mesclagem Inteligente**: Adiciona aos dados existentes sem duplicar categorias
 5. **Validações**: Verifica limites de produtos e existência de usuários
 6. **Tratamento de Erros**: Logs detalhados e rollback em caso de falha
 
@@ -87,7 +76,7 @@ COPY_PRODUCTS_API_KEY=sua_chave_secreta_aqui
 
 - ✅ **Sem JWT**: Usa API Key em vez de autenticação JWT
 - ✅ **Pública**: Pode ser chamada de sistemas externos
-- ✅ **Mesma Funcionalidade**: Copia produtos e categorias igualmente
+- ✅ **Funcionalidade Simplificada**: Copia produtos e categorias com estratégia de mesclagem
 - ✅ **Logs Detalhados**: Melhor rastreamento de erros
 - ✅ **Validações Robustas**: Verificações de limite e permissões
 

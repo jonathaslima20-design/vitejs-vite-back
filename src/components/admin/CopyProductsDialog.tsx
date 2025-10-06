@@ -26,23 +26,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Loader as Loader2, Copy, CircleAlert as AlertCircle, CircleCheck as CheckCircle2 } from 'lucide-react';
+import { Loader as Loader2, Copy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { copyProductsAdmin } from '@/lib/publicApi';
 import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const formSchema = z.object({
   sourceUserId: z.string().min(1, 'Selecione o usuário de origem'),
   targetUserId: z.string().min(1, 'Selecione o usuário de destino'),
-  cloneCategories: z.boolean(),
-  cloneProducts: z.boolean(),
-  mergeStrategy: z.enum(['merge', 'replace']),
-}).refine((data) => data.cloneCategories || data.cloneProducts, {
-  message: 'Selecione pelo menos uma opção (Categorias ou Produtos)',
-  path: ['cloneCategories'],
 });
 
 interface User {
@@ -82,20 +74,11 @@ export function CopyProductsDialog({
     defaultValues: {
       sourceUserId: defaultSourceUserId || '',
       targetUserId: defaultTargetUserId || '',
-      cloneCategories: true,
-      cloneProducts: true,
-      mergeStrategy: 'merge',
-      usePublicApi: false,
-      apiKey: '',
     },
   });
 
   const sourceUserId = form.watch('sourceUserId');
   const targetUserId = form.watch('targetUserId');
-  const cloneCategories = form.watch('cloneCategories');
-  const cloneProducts = form.watch('cloneProducts');
-  const mergeStrategy = form.watch('mergeStrategy');
-  const usePublicApi = form.watch('usePublicApi');
 
   useEffect(() => {
     if (open) {
@@ -178,32 +161,11 @@ export function CopyProductsDialog({
     try {
       setCopying(true);
 
-      let result;
-
-      if (values.usePublicApi && values.apiKey) {
-        // Use public API
-        result = await copyProductsPublic(
-          values.apiKey,
-          values.sourceUserId,
-          values.targetUserId,
-          {
-            cloneCategories: values.cloneCategories,
-            cloneProducts: values.cloneProducts,
-            mergeStrategy: values.mergeStrategy,
-          }
-        );
-      } else {
-        // Use admin API (requires JWT)
-        result = await copyProductsAdmin(
-          values.sourceUserId,
-          values.targetUserId,
-          {
-            cloneCategories: values.cloneCategories,
-            cloneProducts: values.cloneProducts,
-            mergeStrategy: values.mergeStrategy,
-          }
-        );
-      }
+      // Use admin API (requires JWT)
+      const result = await copyProductsAdmin(
+        values.sourceUserId,
+        values.targetUserId
+      );
 
       const messages = [];
       if (result.categoriesCloned > 0) {
@@ -242,7 +204,7 @@ export function CopyProductsDialog({
             Copiar Produtos e Categorias
           </DialogTitle>
           <DialogDescription>
-            Copie categorias e produtos de um usuário para outro. Escolha a estratégia de mesclagem adequada.
+            Copie todas as categorias e produtos de um usuário para outro.
           </DialogDescription>
         </DialogHeader>
 
@@ -368,175 +330,13 @@ export function CopyProductsDialog({
               </div>
             )}
 
-            <div className="space-y-4">
-              <FormLabel>O que deseja copiar?</FormLabel>
-
-              <FormField
-                control={form.control}
-                name="cloneCategories"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Categorias</FormLabel>
-                      <FormDescription>
-                        Copiar todas as categorias do usuário de origem
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cloneProducts"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Produtos e Imagens</FormLabel>
-                      <FormDescription>
-                        Copiar todos os produtos com suas respectivas imagens
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="mergeStrategy"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estratégia de Mesclagem</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="merge">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          <div>
-                            <div className="font-medium">Mesclar (Recomendado)</div>
-                            <div className="text-xs text-muted-foreground">
-                              Adiciona novos itens sem remover os existentes
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="replace">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-orange-500" />
-                          <div>
-                            <div className="font-medium">Substituir</div>
-                            <div className="text-xs text-muted-foreground">
-                              Remove todos os dados existentes antes de copiar
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    {mergeStrategy === 'merge'
-                      ? 'Os dados serão adicionados aos existentes. Categorias duplicadas serão ignoradas.'
-                      : 'ATENÇÃO: Todos os dados do usuário de destino serão removidos antes da cópia!'}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* API Method Selection */}
-            <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-              <FormField
-                control={form.control}
-                name="usePublicApi"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Usar API Pública</FormLabel>
-                      <FormDescription>
-                        Use a API pública com chave de API em vez da autenticação JWT (recomendado para automação)
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              {usePublicApi && (
-                <FormField
-                  control={form.control}
-                  name="apiKey"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>API Key</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="password"
-                          placeholder="Digite a API Key para autenticação"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Chave de API necessária para usar a função pública
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
-
-            {mergeStrategy === 'replace' && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Atenção!</strong> A estratégia "Substituir" irá deletar permanentemente todos os
-                  {cloneCategories && ' categorias'}
-                  {cloneCategories && cloneProducts && ' e'}
-                  {cloneProducts && ' produtos'}
-                  {' '}existentes do usuário de destino. Esta ação não pode ser desfeita.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {canProceed && cloneProducts && sourceStats && targetStats && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {mergeStrategy === 'merge' ? (
-                    <>
-                      O usuário de destino tem {targetStats.productsCount} produto(s) e receberá mais {sourceStats.productsCount}.
-                      Total após a cópia: {targetStats.productsCount + sourceStats.productsCount} produtos.
-                    </>
-                  ) : (
-                    <>
-                      Todos os {targetStats.productsCount} produto(s) existentes serão removidos e substituídos por {sourceStats.productsCount} novo(s) produto(s).
-                    </>
-                  )}
-                </AlertDescription>
-              </Alert>
+            {canProceed && sourceStats && targetStats && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Resumo:</strong> Serão copiados {sourceStats.categoriesCloned} categoria(s) e {sourceStats.productsCount} produto(s) 
+                  para o usuário de destino. Os dados existentes serão preservados.
+                </p>
+              </div>
             )}
 
             <div className="flex justify-end gap-2 pt-4">
@@ -553,7 +353,7 @@ export function CopyProductsDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={copying || !canProceed || (!cloneCategories && !cloneProducts)}
+                disabled={copying || !canProceed}
               >
                 {copying ? (
                   <>

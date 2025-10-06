@@ -1,26 +1,23 @@
 /*
-  # Copy Products Public Edge Function (No JWT Required)
+  # Copy Products Public Edge Function (Simplified)
 
   This function handles copying products and categories between users using API Key authentication.
+  Simplified version with essential functionality only.
 
   1. Features
-    - Copies categories from user_product_categories table
-    - Copies products with all their images
-    - Copies all images from storage to new locations
-    - Supports merge or replace strategies
-    - Maintains data integrity and relationships
-    - Public endpoint with API Key authentication
+    - Copies categories and products between users
+    - Copies all images to new locations
+    - Simple merge strategy (always adds to existing data)
+    - Clean error handling
 
   2. Security
     - Uses API Key authentication (X-API-Key header)
-    - Validates source and target users exist
-    - Rate limiting and input validation
-    - Handles errors gracefully with detailed logging
+    - Validates users exist
+    - Input validation
 
   3. Usage
     - Header required: X-API-Key with valid secret key
-    - No JWT/Authorization needed
-    - Can be called from external systems
+    - Simple request body with source and target user IDs
 */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -34,16 +31,6 @@ const corsHeaders = {
 interface CopyProductsRequest {
   sourceUserId: string;
   targetUserId: string;
-  cloneCategories: boolean;
-  cloneProducts: boolean;
-  mergeStrategy: 'merge' | 'replace';
-}
-
-interface CopyStats {
-  categoriesCloned: number;
-  productsCloned: number;
-  imagesCloned: number;
-  errors: string[];
 }
 
 Deno.serve(async (req: Request) => {
@@ -66,10 +53,9 @@ Deno.serve(async (req: Request) => {
     const apiKey = req.headers.get('X-API-Key');
     const validApiKey = Deno.env.get('COPY_PRODUCTS_API_KEY');
 
-    if (!apiKey) {
-      console.error('Missing API Key');
+    if (!apiKey || apiKey !== validApiKey) {
       return new Response(
-        JSON.stringify({ error: { message: 'Missing X-API-Key header' } }),
+        JSON.stringify({ error: { message: 'Invalid or missing API Key' } }),
         {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -77,55 +63,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!validApiKey) {
-      console.error('COPY_PRODUCTS_API_KEY not configured in environment');
-      return new Response(
-        JSON.stringify({ error: { message: 'Server configuration error' } }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    if (apiKey !== validApiKey) {
-      console.error('Invalid API Key provided');
-      return new Response(
-        JSON.stringify({ error: { message: 'Invalid API Key' } }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    console.log('API Key validated successfully');
-
-    // Create Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Parse request body
-    const {
-      sourceUserId,
-      targetUserId,
-      cloneCategories = true,
-      cloneProducts = true,
-      mergeStrategy = 'merge'
-    }: CopyProductsRequest = await req.json();
+    const { sourceUserId, targetUserId }: CopyProductsRequest = await req.json();
 
     // Validate required fields
     if (!sourceUserId || !targetUserId) {
       return new Response(
-        JSON.stringify({ error: { message: 'Missing required fields: sourceUserId, targetUserId' } }),
+        JSON.stringify({ error: { message: 'sourceUserId and targetUserId are required' } }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -143,414 +91,189 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!cloneCategories && !cloneProducts) {
-      return new Response(
-        JSON.stringify({ error: { message: 'At least one option must be selected (categories or products)' } }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    console.log('Starting copy products process:', {
-      sourceUserId,
-      targetUserId,
-      cloneCategories,
-      cloneProducts,
-      mergeStrategy
-    });
+    console.log('Starting copy process:', { sourceUserId, targetUserId });
 
     // Validate users exist
-    const { data: sourceUser, error: sourceUserError } = await supabaseAdmin
-      .from('users')
-      .select('id, name, email')
-      .eq('id', sourceUserId)
-      .single();
+    const [sourceUserResult, targetUserResult] = await Promise.all([
+      supabaseAdmin.from('users').select('id, name').eq('id', sourceUserId).single(),
+      supabaseAdmin.from('users').select('id, name, listing_limit').eq('id', targetUserId).single()
+    ]);
 
-    if (sourceUserError || !sourceUser) {
+    if (sourceUserResult.error || !sourceUserResult.data) {
       return new Response(
         JSON.stringify({ error: { message: 'Source user not found' } }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { data: targetUser, error: targetUserError } = await supabaseAdmin
-      .from('users')
-      .select('id, name, email, listing_limit')
-      .eq('id', targetUserId)
-      .single();
-
-    if (targetUserError || !targetUser) {
+    if (targetUserResult.error || !targetUserResult.data) {
       return new Response(
         JSON.stringify({ error: { message: 'Target user not found' } }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const stats: CopyStats = {
-      categoriesCloned: 0,
-      productsCloned: 0,
-      imagesCloned: 0,
-      errors: []
-    };
+    let categoriesCloned = 0;
+    let productsCloned = 0;
+    let imagesCloned = 0;
 
-    // Clone Categories
-    if (cloneCategories) {
-      console.log('Cloning product categories...');
+    // Copy Categories
+    console.log('Copying categories...');
+    const { data: sourceCategories } = await supabaseAdmin
+      .from('user_product_categories')
+      .select('name')
+      .eq('user_id', sourceUserId);
 
-      try {
-        const { data: sourceCategories } = await supabaseAdmin
+    if (sourceCategories && sourceCategories.length > 0) {
+      // Get existing categories to avoid duplicates
+      const { data: existingCategories } = await supabaseAdmin
+        .from('user_product_categories')
+        .select('name')
+        .eq('user_id', targetUserId);
+
+      const existingNames = new Set(existingCategories?.map(c => c.name.toLowerCase()) || []);
+      const newCategories = sourceCategories.filter(c => !existingNames.has(c.name.toLowerCase()));
+
+      if (newCategories.length > 0) {
+        const { error } = await supabaseAdmin
           .from('user_product_categories')
-          .select('name')
-          .eq('user_id', sourceUserId);
+          .insert(newCategories.map(c => ({ user_id: targetUserId, name: c.name })));
 
-        if (sourceCategories && sourceCategories.length > 0) {
-          // Handle replace strategy
-          if (mergeStrategy === 'replace') {
-            const { error: deleteError } = await supabaseAdmin
-              .from('user_product_categories')
-              .delete()
-              .eq('user_id', targetUserId);
-
-            if (deleteError) {
-              stats.errors.push(`Error deleting existing categories: ${deleteError.message}`);
-            } else {
-              console.log('Deleted existing categories for replace strategy');
-            }
-          }
-
-          // Get existing categories for merge strategy
-          const { data: existingCategories } = await supabaseAdmin
-            .from('user_product_categories')
-            .select('name')
-            .eq('user_id', targetUserId);
-
-          const existingCategoryNames = new Set(
-            existingCategories?.map(cat => cat.name.toLowerCase()) || []
-          );
-
-          // Filter categories to insert based on strategy
-          const categoriesToInsert = mergeStrategy === 'merge'
-            ? sourceCategories.filter(cat => !existingCategoryNames.has(cat.name.toLowerCase()))
-            : sourceCategories;
-
-          if (categoriesToInsert.length > 0) {
-            const categoryInserts = categoriesToInsert.map(cat => ({
-              user_id: targetUserId,
-              name: cat.name
-            }));
-
-            const { error: categoryError } = await supabaseAdmin
-              .from('user_product_categories')
-              .insert(categoryInserts);
-
-            if (categoryError) {
-              stats.errors.push(`Error cloning categories: ${categoryError.message}`);
-            } else {
-              stats.categoriesCloned = categoryInserts.length;
-              console.log(`Cloned ${stats.categoriesCloned} categories`);
-            }
-          } else {
-            console.log('No new categories to clone (all already exist)');
-          }
+        if (!error) {
+          categoriesCloned = newCategories.length;
         }
-      } catch (error) {
-        stats.errors.push(`Unexpected error cloning categories: ${error.message}`);
       }
     }
 
-    // Clone Products
-    if (cloneProducts) {
-      console.log('Cloning products...');
+    // Copy Products
+    console.log('Copying products...');
+    const { data: sourceProducts } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .eq('user_id', sourceUserId);
 
-      try {
-        const { data: sourceProducts } = await supabaseAdmin
-          .from('products')
-          .select('*')
-          .eq('user_id', sourceUserId);
-
-        if (sourceProducts && sourceProducts.length > 0) {
-          // Check target user's listing limit
-          const { count: existingProductCount } = await supabaseAdmin
+    if (sourceProducts && sourceProducts.length > 0) {
+      for (const product of sourceProducts) {
+        try {
+          // Create new product
+          const { data: newProduct, error: productError } = await supabaseAdmin
             .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', targetUserId);
+            .insert({
+              user_id: targetUserId,
+              title: product.title,
+              description: product.description,
+              price: product.price,
+              discounted_price: product.discounted_price,
+              status: product.status,
+              category: product.category,
+              brand: product.brand,
+              model: product.model,
+              gender: product.gender,
+              condition: product.condition,
+              video_url: product.video_url,
+              featured_offer_price: product.featured_offer_price,
+              featured_offer_installment: product.featured_offer_installment,
+              featured_offer_description: product.featured_offer_description,
+              is_starting_price: product.is_starting_price,
+              short_description: product.short_description,
+              is_visible_on_storefront: product.is_visible_on_storefront,
+              external_checkout_url: product.external_checkout_url,
+              colors: product.colors,
+              sizes: product.sizes,
+              display_order: product.display_order
+            })
+            .select()
+            .single();
 
-          const listingLimit = targetUser.listing_limit || 50;
-          const totalAfterClone = mergeStrategy === 'merge' 
-            ? (existingProductCount || 0) + sourceProducts.length 
-            : sourceProducts.length;
-
-          if (totalAfterClone > listingLimit) {
-            return new Response(
-              JSON.stringify({
-                error: {
-                  message: `Target user would exceed listing limit. Current: ${existingProductCount}, Adding: ${sourceProducts.length}, Limit: ${listingLimit}`
-                }
-              }),
-              {
-                status: 400,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-              }
-            );
+          if (productError) {
+            console.error('Error creating product:', productError);
+            continue;
           }
 
-          // Handle replace strategy - delete existing products
-          if (mergeStrategy === 'replace') {
-            const { data: existingProducts } = await supabaseAdmin
-              .from('products')
-              .select('id')
-              .eq('user_id', targetUserId);
+          productsCloned++;
 
-            if (existingProducts && existingProducts.length > 0) {
-              // Delete product images first
-              const { error: deleteImagesError } = await supabaseAdmin
-                .from('product_images')
-                .delete()
-                .in('product_id', existingProducts.map(p => p.id));
+          // Copy product images
+          const { data: productImages } = await supabaseAdmin
+            .from('product_images')
+            .select('*')
+            .eq('product_id', product.id);
 
-              if (deleteImagesError) {
-                stats.errors.push(`Error deleting existing product images: ${deleteImagesError.message}`);
+          if (productImages && productImages.length > 0) {
+            let featuredImageUrl = null;
+
+            for (const image of productImages) {
+              try {
+                // Download image
+                const imageResponse = await fetch(image.url);
+                if (!imageResponse.ok) continue;
+
+                const imageBlob = await imageResponse.blob();
+                
+                // Generate new filename
+                const fileExtension = image.url.split('.').pop() || 'jpg';
+                const newFileName = `${newProduct.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+                const newFilePath = `products/${newFileName}`;
+
+                // Upload to storage
+                const { error: uploadError } = await supabaseAdmin.storage
+                  .from('public')
+                  .upload(newFilePath, imageBlob);
+
+                if (uploadError) continue;
+
+                // Get public URL
+                const { data: { publicUrl } } = supabaseAdmin.storage
+                  .from('public')
+                  .getPublicUrl(newFilePath);
+
+                // Save image reference
+                const { error: insertError } = await supabaseAdmin
+                  .from('product_images')
+                  .insert({
+                    product_id: newProduct.id,
+                    url: publicUrl,
+                    is_featured: image.is_featured
+                  });
+
+                if (insertError) continue;
+
+                if (image.is_featured) {
+                  featuredImageUrl = publicUrl;
+                }
+
+                imagesCloned++;
+
+              } catch (error) {
+                console.warn('Failed to copy image:', error);
               }
+            }
 
-              // Delete products
-              const { error: deleteProductsError } = await supabaseAdmin
+            // Update featured image URL
+            if (featuredImageUrl) {
+              await supabaseAdmin
                 .from('products')
-                .delete()
-                .eq('user_id', targetUserId);
-
-              if (deleteProductsError) {
-                stats.errors.push(`Error deleting existing products: ${deleteProductsError.message}`);
-              } else {
-                console.log('Deleted existing products for replace strategy');
-              }
+                .update({ featured_image_url: featuredImageUrl })
+                .eq('id', newProduct.id);
             }
           }
 
-          // Clone each product
-          for (const product of sourceProducts) {
-            try {
-              console.log(`Cloning product: ${product.title}`);
-
-              // Create new product
-              const { data: newProduct, error: productError } = await supabaseAdmin
-                .from('products')
-                .insert({
-                  user_id: targetUserId,
-                  title: product.title,
-                  description: product.description,
-                  price: product.price,
-                  discounted_price: product.discounted_price,
-                  status: product.status,
-                  category: product.category,
-                  brand: product.brand,
-                  model: product.model,
-                  gender: product.gender,
-                  condition: product.condition,
-                  video_url: product.video_url,
-                  featured_offer_price: product.featured_offer_price,
-                  featured_offer_installment: product.featured_offer_installment,
-                  featured_offer_description: product.featured_offer_description,
-                  is_starting_price: product.is_starting_price,
-                  short_description: product.short_description,
-                  is_visible_on_storefront: product.is_visible_on_storefront,
-                  external_checkout_url: product.external_checkout_url,
-                  colors: product.colors,
-                  sizes: product.sizes,
-                  display_order: product.display_order
-                })
-                .select()
-                .single();
-
-              if (productError) {
-                stats.errors.push(`Error creating product "${product.title}": ${productError.message}`);
-                continue;
-              }
-
-              stats.productsCloned++;
-
-              // Clone product images
-              const { data: productImages } = await supabaseAdmin
-                .from('product_images')
-                .select('*')
-                .eq('product_id', product.id);
-
-              if (productImages && productImages.length > 0) {
-                let newFeaturedImageUrl = null;
-
-                for (const image of productImages) {
-                  try {
-                    // Fetch the original image
-                    const imageResponse = await fetch(image.url);
-                    if (!imageResponse.ok) {
-                      console.warn(`Failed to fetch image from ${image.url}: ${imageResponse.status}`);
-                      continue;
-                    }
-
-                    // Check file size (limit to 10MB)
-                    const contentLength = imageResponse.headers.get('content-length');
-                    if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
-                      console.warn(`Image too large (${contentLength} bytes), skipping`);
-                      continue;
-                    }
-
-                    const imageBlob = await imageResponse.blob();
-
-                    // Generate new filename
-                    const originalFileName = image.url.split('/').pop()?.split('?')[0] || 'image.jpg';
-                    const fileExtension = originalFileName.split('.').pop() || 'jpg';
-                    const timestamp = Date.now();
-                    const randomStr = Math.random().toString(36).substring(2, 11);
-                    const newFileName = `${newProduct.id}-${timestamp}-${randomStr}.${fileExtension}`;
-                    const newFilePath = `products/${newFileName}`;
-
-                    // Upload to storage
-                    const { error: uploadError } = await supabaseAdmin.storage
-                      .from('public')
-                      .upload(newFilePath, imageBlob, {
-                        contentType: imageBlob.type,
-                        cacheControl: '3600',
-                        upsert: false
-                      });
-
-                    if (uploadError) {
-                      console.error(`Failed to upload image: ${uploadError.message}`);
-                      continue;
-                    }
-
-                    // Get public URL
-                    const { data: { publicUrl } } = supabaseAdmin.storage
-                      .from('public')
-                      .getPublicUrl(newFilePath);
-
-                    // Insert image record
-                    const { error: insertError } = await supabaseAdmin
-                      .from('product_images')
-                      .insert({
-                        product_id: newProduct.id,
-                        url: publicUrl,
-                        is_featured: image.is_featured
-                      });
-
-                    if (insertError) {
-                      console.error(`Failed to insert product image record: ${insertError.message}`);
-                      // Try to clean up the uploaded file
-                      await supabaseAdmin.storage
-                        .from('public')
-                        .remove([newFilePath]);
-                      continue;
-                    }
-
-                    if (image.is_featured) {
-                      newFeaturedImageUrl = publicUrl;
-                    }
-
-                    stats.imagesCloned++;
-                    console.log(`Copied product image successfully: ${newFileName}`);
-
-                  } catch (error) {
-                    console.error(`Failed to copy product image:`, error);
-                    stats.errors.push(`Failed to copy image for product "${product.title}": ${error.message}`);
-                  }
-                }
-
-                // Update featured image URL if we have one
-                if (newFeaturedImageUrl) {
-                  const { error: updateFeaturedError } = await supabaseAdmin
-                    .from('products')
-                    .update({ featured_image_url: newFeaturedImageUrl })
-                    .eq('id', newProduct.id);
-
-                  if (updateFeaturedError) {
-                    console.error(`Failed to update featured image for product ${newProduct.id}:`, updateFeaturedError);
-                  }
-                }
-              }
-
-            } catch (error) {
-              console.error(`Failed to clone product "${product.title}":`, error);
-              stats.errors.push(`Failed to clone product "${product.title}": ${error.message}`);
-            }
-          }
+        } catch (error) {
+          console.error('Failed to copy product:', error);
         }
-      } catch (error) {
-        stats.errors.push(`Unexpected error cloning products: ${error.message}`);
       }
     }
 
-    // Update storefront settings for target user
-    try {
-      console.log('Updating storefront settings...');
-      
-      // Get source user's storefront settings
-      const { data: sourceSettings } = await supabaseAdmin
-        .from('user_storefront_settings')
-        .select('settings')
-        .eq('user_id', sourceUserId)
-        .maybeSingle();
-
-      if (sourceSettings?.settings) {
-        if (mergeStrategy === 'replace') {
-          // Replace all settings
-          await supabaseAdmin
-            .from('user_storefront_settings')
-            .upsert({
-              user_id: targetUserId,
-              settings: sourceSettings.settings
-            }, {
-              onConflict: 'user_id'
-            });
-        } else {
-          // Merge settings (preserve existing, add new categories)
-          const { data: targetSettings } = await supabaseAdmin
-            .from('user_storefront_settings')
-            .select('settings')
-            .eq('user_id', targetUserId)
-            .maybeSingle();
-
-          const mergedSettings = {
-            ...targetSettings?.settings,
-            ...sourceSettings.settings,
-            categoryDisplaySettings: [
-              ...(targetSettings?.settings?.categoryDisplaySettings || []),
-              ...(sourceSettings.settings.categoryDisplaySettings || [])
-            ]
-          };
-
-          await supabaseAdmin
-            .from('user_storefront_settings')
-            .upsert({
-              user_id: targetUserId,
-              settings: mergedSettings
-            }, {
-              onConflict: 'user_id'
-            });
-        }
-      }
-    } catch (error) {
-      console.warn('Error updating storefront settings:', error);
-      stats.errors.push(`Warning: Could not update storefront settings: ${error.message}`);
-    }
-
-    console.log('Copy products process completed:', stats);
+    console.log('Copy completed:', { categoriesCloned, productsCloned, imagesCloned });
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Products and categories copied successfully',
         stats: {
-          categoriesCloned: stats.categoriesCloned,
-          productsCloned: stats.productsCloned,
-          imagesCloned: stats.imagesCloned
-        },
-        warnings: stats.errors.length > 0 ? stats.errors : undefined
+          categoriesCloned,
+          productsCloned,
+          imagesCloned
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -558,13 +281,10 @@ Deno.serve(async (req: Request) => {
     );
 
   } catch (error) {
-    console.error('Unexpected error in copy-products-public function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Error in copy-products-public function:', error);
     return new Response(
       JSON.stringify({
-        error: {
-          message: 'Internal server error: ' + errorMessage
-        }
+        error: { message: 'Internal server error: ' + error.message }
       }),
       {
         status: 500,
