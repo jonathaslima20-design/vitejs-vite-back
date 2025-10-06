@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Eye, Edit, Trash2, Ban, CheckCircle, Copy, ExternalLink } from 'lucide-react';
+import { Eye, CreditCard as Edit, Trash2, Ban, CircleCheck as CheckCircle, Copy, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
