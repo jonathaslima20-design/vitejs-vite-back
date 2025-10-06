@@ -29,24 +29,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader as Loader2, Copy, Info, Eye, EyeOff } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Loader as Loader2, Copy, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { cloneUserComplete } from '@/lib/adminApi';
 import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 
-const formSchema = z.object({
+const copyFormSchema = z.object({
   sourceUserId: z.string().min(1, 'Selecione o usuário de origem'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-  confirmPassword: z.string(),
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  slug: z.string().min(2, 'Slug deve ter pelo menos 2 caracteres')
-    .regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífens'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não coincidem",
-  path: ["confirmPassword"],
+  targetUserId: z.string().min(1, 'Selecione o usuário de destino'),
 });
 
 interface User {
@@ -59,38 +49,32 @@ interface User {
 interface SimpleCopyProductsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultTargetUserId?: string;
   defaultSourceUserId?: string;
+  defaultTargetUserId?: string;
 }
 
 export function SimpleCopyProductsDialog({
   open,
   onOpenChange,
-  defaultTargetUserId,
   defaultSourceUserId,
+  defaultTargetUserId,
 }: SimpleCopyProductsDialogProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [cloning, setCloning] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof copyFormSchema>>({
+    resolver: zodResolver(copyFormSchema),
     defaultValues: {
       sourceUserId: defaultSourceUserId || '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      name: '',
-      slug: '',
+      targetUserId: defaultTargetUserId || '',
     },
   });
 
   const sourceUserId = form.watch('sourceUserId');
-  const name = form.watch('name');
+  const targetUserId = form.watch('targetUserId');
 
   useEffect(() => {
     if (open) {
@@ -98,21 +82,11 @@ export function SimpleCopyProductsDialog({
       if (defaultSourceUserId) {
         form.setValue('sourceUserId', defaultSourceUserId);
       }
+      if (defaultTargetUserId) {
+        form.setValue('targetUserId', defaultTargetUserId);
+      }
     }
-  }, [open, defaultSourceUserId]);
-
-  // Auto-generate slug from name
-  useEffect(() => {
-    if (name && !form.getValues('slug')) {
-      const slug = name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      form.setValue('slug', slug);
-    }
-  }, [name]);
+  }, [open, defaultSourceUserId, defaultTargetUserId]);
 
   const fetchUsers = async () => {
     try {
@@ -132,41 +106,199 @@ export function SimpleCopyProductsDialog({
     }
   };
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const copyProductsAndCategories = async (sourceId: string, targetId: string) => {
     try {
-      setCloning(true);
-      setProgress(10);
-      setProgressMessage('Iniciando clonagem...');
+      setProgress(20);
+      setProgressMessage('Copiando categorias...');
 
-      const selectedUser = users.find(u => u.id === values.sourceUserId);
-      if (!selectedUser) {
-        throw new Error('Usuário de origem não encontrado');
+      // 1. Copiar categorias
+      const { data: sourceCategories, error: categoriesError } = await supabase
+        .from('user_product_categories')
+        .select('name')
+        .eq('user_id', sourceId);
+
+      if (categoriesError) throw categoriesError;
+
+      if (sourceCategories && sourceCategories.length > 0) {
+        // Verificar quais categorias já existem no usuário de destino
+        const { data: existingCategories } = await supabase
+          .from('user_product_categories')
+          .select('name')
+          .eq('user_id', targetId);
+
+        const existingNames = new Set(existingCategories?.map(c => c.name) || []);
+        
+        // Inserir apenas categorias que não existem
+        const newCategories = sourceCategories
+          .filter(cat => !existingNames.has(cat.name))
+          .map(cat => ({
+            user_id: targetId,
+            name: cat.name
+          }));
+
+        if (newCategories.length > 0) {
+          const { error: insertCategoriesError } = await supabase
+            .from('user_product_categories')
+            .insert(newCategories);
+
+          if (insertCategoriesError) throw insertCategoriesError;
+        }
       }
 
-      setProgress(30);
-      setProgressMessage('Criando novo usuário...');
+      setProgress(40);
+      setProgressMessage('Copiando produtos...');
 
-      const { newUserId } = await cloneUserComplete(values.sourceUserId, {
-        email: values.email,
-        password: values.password,
-        name: values.name,
-        slug: values.slug,
-      });
+      // 2. Copiar produtos
+      const { data: sourceProducts, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('user_id', sourceId);
 
-      setProgress(80);
+      if (productsError) throw productsError;
+
+      if (sourceProducts && sourceProducts.length > 0) {
+        for (let i = 0; i < sourceProducts.length; i++) {
+          const product = sourceProducts[i];
+          const progressPercent = 40 + (i / sourceProducts.length) * 40;
+          setProgress(progressPercent);
+          setProgressMessage(`Copiando produto ${i + 1} de ${sourceProducts.length}...`);
+
+          // Criar novo produto
+          const { data: newProduct, error: productError } = await supabase
+            .from('products')
+            .insert({
+              user_id: targetId,
+              title: product.title,
+              description: product.description,
+              price: product.price,
+              discounted_price: product.discounted_price,
+              status: product.status,
+              category: product.category,
+              brand: product.brand,
+              model: product.model,
+              gender: product.gender,
+              condition: product.condition,
+              video_url: product.video_url,
+              featured_offer_price: product.featured_offer_price,
+              featured_offer_installment: product.featured_offer_installment,
+              featured_offer_description: product.featured_offer_description,
+              is_starting_price: product.is_starting_price,
+              short_description: product.short_description,
+              is_visible_on_storefront: product.is_visible_on_storefront,
+              external_checkout_url: product.external_checkout_url,
+              colors: product.colors,
+              sizes: product.sizes,
+              display_order: product.display_order
+            })
+            .select()
+            .single();
+
+          if (productError) {
+            console.error('Error copying product:', productError);
+            continue;
+          }
+
+          // 3. Copiar imagens do produto
+          const { data: productImages } = await supabase
+            .from('product_images')
+            .select('*')
+            .eq('product_id', product.id);
+
+          if (productImages && productImages.length > 0) {
+            let newFeaturedImageUrl = null;
+
+            for (const image of productImages) {
+              try {
+                // Baixar imagem original
+                const imageResponse = await fetch(image.url);
+                if (imageResponse.ok) {
+                  const imageBlob = await imageResponse.blob();
+                  
+                  // Gerar novo nome de arquivo
+                  const originalFileName = image.url.split('/').pop() || 'image.jpg';
+                  const fileExtension = originalFileName.split('.').pop() || 'jpg';
+                  const newFileName = `${newProduct.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+                  const newFilePath = `products/${newFileName}`;
+
+                  // Upload nova imagem
+                  const { error: uploadError } = await supabase.storage
+                    .from('public')
+                    .upload(newFilePath, imageBlob);
+
+                  if (!uploadError) {
+                    const { data: { publicUrl } } = supabase.storage
+                      .from('public')
+                      .getPublicUrl(newFilePath);
+
+                    // Salvar referência da imagem
+                    await supabase
+                      .from('product_images')
+                      .insert({
+                        product_id: newProduct.id,
+                        url: publicUrl,
+                        is_featured: image.is_featured
+                      });
+
+                    if (image.is_featured) {
+                      newFeaturedImageUrl = publicUrl;
+                    }
+                  }
+                }
+              } catch (error) {
+                console.warn('Failed to copy product image:', error);
+              }
+            }
+
+            // Atualizar URL da imagem principal do produto
+            if (newFeaturedImageUrl) {
+              await supabase
+                .from('products')
+                .update({ featured_image_url: newFeaturedImageUrl })
+                .eq('id', newProduct.id);
+            }
+          }
+        }
+      }
+
+      setProgress(90);
       setProgressMessage('Sincronizando configurações...');
 
-      // Sync categories for the new user
+      // 4. Sincronizar configurações da vitrine
       try {
-        await syncUserCategoriesWithStorefrontSettings(newUserId);
+        await syncUserCategoriesWithStorefrontSettings(targetId);
       } catch (syncError) {
         console.warn('Category sync warning (non-critical):', syncError);
       }
 
       setProgress(100);
-      setProgressMessage('Clonagem concluída!');
+      setProgressMessage('Cópia concluída!');
 
-      toast.success(`Usuário "${values.name}" clonado com sucesso! Todos os dados, produtos e imagens foram copiados.`);
+    } catch (error) {
+      console.error('Error copying products:', error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (values: z.infer<typeof copyFormSchema>) => {
+    try {
+      setCopying(true);
+      setProgress(10);
+      setProgressMessage('Iniciando cópia...');
+
+      const sourceUser = users.find(u => u.id === values.sourceUserId);
+      const targetUser = users.find(u => u.id === values.targetUserId);
+      
+      if (!sourceUser || !targetUser) {
+        throw new Error('Usuário de origem não encontrado');
+      }
+
+      if (values.sourceUserId === values.targetUserId) {
+        throw new Error('Usuário de origem e destino não podem ser o mesmo');
+      }
+
+      await copyProductsAndCategories(values.sourceUserId, values.targetUserId);
+
+      toast.success(`Produtos e categorias copiados de "${sourceUser.name}" para "${targetUser.name}" com sucesso!`);
       
       onOpenChange(false);
       form.reset();
@@ -178,14 +310,15 @@ export function SimpleCopyProductsDialog({
       }, 1000);
 
     } catch (error: any) {
-      console.error('❌ Clone operation failed:', error);
-      toast.error(error.message || 'Erro na clonagem');
+      console.error('❌ Copy operation failed:', error);
+      toast.error(error.message || 'Erro na cópia');
     } finally {
-      setCloning(false);
+      setCopying(false);
     }
   };
 
-  const selectedSourceUser = users.find(u => u.id === sourceUserId);
+  const sourceUser = users.find(u => u.id === sourceUserId);
+  const targetUser = users.find(u => u.id === targetUserId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,16 +326,16 @@ export function SimpleCopyProductsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Copy className="h-5 w-5 text-primary" />
-            Clonar Usuário Completo
+            Copiar Produtos e Categorias
           </DialogTitle>
           <DialogDescription>
-            Cria uma cópia completa do usuário incluindo perfil, categorias, produtos e todas as imagens.
-            Esta operação pode levar alguns minutos dependendo da quantidade de dados.
+            Copia todas as categorias e produtos (incluindo imagens) de um usuário para outro.
+            O usuário de destino deve já existir na plataforma.
           </DialogDescription>
         </DialogHeader>
 
         {/* Progress Bar */}
-        {cloning && (
+        {copying && (
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>{progressMessage}</span>
@@ -214,21 +347,21 @@ export function SimpleCopyProductsDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Source User Selection */}
+            {/* Source and Target User Selection */}
             <FormField
               control={form.control}
               name="sourceUserId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Usuário para Clonar</FormLabel>
+                  <FormLabel>Usuário de Origem (copiar DE)</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={loadingUsers || cloning}
+                    disabled={loadingUsers || copying}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o usuário para clonar" />
+                        <SelectValue placeholder="Selecione o usuário de origem" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -240,145 +373,64 @@ export function SimpleCopyProductsDialog({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Todos os dados deste usuário serão copiados
+                    Produtos e categorias deste usuário serão copiados
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* New User Data */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Dados do Novo Usuário</h3>
-              
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome Completo</FormLabel>
+            <FormField
+              control={form.control}
+              name="targetUserId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Usuário de Destino (copiar PARA)</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={loadingUsers || copying}
+                  >
                     <FormControl>
-                      <Input placeholder="Nome do novo usuário" {...field} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o usuário de destino" />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    <SelectContent>
+                      {users
+                        .filter(user => user.id !== sourceUserId) // Não mostrar o mesmo usuário
+                        .map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} ({user.email})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Os produtos serão adicionados a este usuário
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="email@exemplo.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="slug"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link da Vitrine</FormLabel>
-                    <FormControl>
-                      <div className="flex items-center">
-                        <span className="text-sm text-muted-foreground mr-2">vitrineturbo.com/</span>
-                        <Input placeholder="novo-usuario" {...field} />
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      URL única para a vitrine do novo usuário
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input 
-                            type={showPassword ? "text" : "password"} 
-                            placeholder="Senha do novo usuário"
-                            {...field} 
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar Senha</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input 
-                            type={showConfirmPassword ? "text" : "password"} 
-                            placeholder="Confirme a senha"
-                            {...field} 
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* Source User Summary */}
-            {selectedSourceUser && (
+            {/* Summary */}
+            {sourceUser && targetUser && (
               <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-blue-500"></span>
-                  Origem: {selectedSourceUser.name}
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Todos os dados deste usuário serão copiados para o novo usuário, incluindo:
-                  perfil, configurações, categorias, produtos e imagens.
-                </p>
+                <div className="space-y-2">
+                  <h4 className="font-medium mb-2">Resumo da Operação:</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                    <span className="text-sm">DE: {sourceUser.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                    <span className="text-sm">PARA: {targetUser.name}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Serão copiados: categorias, produtos e todas as imagens associadas.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -386,9 +438,9 @@ export function SimpleCopyProductsDialog({
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                <strong>Clonagem Completa:</strong> Esta operação cria uma cópia exata do usuário selecionado,
-                incluindo todas as configurações, produtos e imagens. O processo é otimizado e confiável,
-                baseado no sistema de clonagem de usuários já testado.
+                <strong>Cópia de Produtos:</strong> Esta operação copia todos os produtos e categorias 
+                do usuário de origem para o usuário de destino. As imagens são duplicadas fisicamente 
+                para evitar conflitos. Produtos duplicados não serão criados.
               </AlertDescription>
             </Alert>
 
@@ -399,26 +451,24 @@ export function SimpleCopyProductsDialog({
                 onClick={() => {
                   onOpenChange(false);
                   form.reset();
-                  setShowPassword(false);
-                  setShowConfirmPassword(false);
                 }}
-                disabled={cloning}
+                disabled={copying}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={cloning || !sourceUserId}
+                disabled={copying || !sourceUserId || !targetUserId}
               >
-                {cloning ? (
+                {copying ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Clonando...
+                    Copiando...
                   </>
                 ) : (
                   <>
                     <Copy className="mr-2 h-4 w-4" />
-                    Clonar Usuário
+                    Copiar Produtos
                   </>
                 )}
               </Button>

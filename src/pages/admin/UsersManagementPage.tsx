@@ -25,7 +25,9 @@ export default function UsersManagementPage() {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
+  const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
   const [cloneTargetUserId, setCloneTargetUserId] = useState<string>('');
+  const [copyTargetUserId, setCopyTargetUserId] = useState<string>('');
   const { user: currentUser } = useAuth();
   const { plans: subscriptionPlans } = useSubscriptionPlans();
 
@@ -39,9 +41,18 @@ export default function UsersManagementPage() {
       }
     };
 
+    const handleOpenCopyProducts = (event: CustomEvent) => {
+      const { targetUserId } = event.detail;
+      if (targetUserId) {
+        setCopyTargetUserId(targetUserId);
+        setShowCopyProductsDialog(true);
+      }
+    };
     window.addEventListener('openUserClone', handleOpenUserClone as EventListener);
+    window.addEventListener('openCopyProducts', handleOpenCopyProducts as EventListener);
     return () => {
       window.removeEventListener('openUserClone', handleOpenUserClone as EventListener);
+      window.removeEventListener('openCopyProducts', handleOpenCopyProducts as EventListener);
     };
   }, []);
 
@@ -408,11 +419,18 @@ export default function UsersManagementPage() {
         currentUserRole={currentUser?.role || ''}
       />
 
-      {/* Simple Copy Products Dialog */}
+      {/* Clone User Dialog */}
       <SimpleCopyProductsDialog
         open={showSimpleCopyDialog}
         onOpenChange={setShowSimpleCopyDialog}
         defaultSourceUserId={cloneTargetUserId}
+      />
+
+      {/* Copy Products Dialog */}
+      <SimpleCopyProductsDialog
+        open={showCopyProductsDialog}
+        onOpenChange={setShowCopyProductsDialog}
+        defaultTargetUserId={copyTargetUserId}
       />
     </div>
   );

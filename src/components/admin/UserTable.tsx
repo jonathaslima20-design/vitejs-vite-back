@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Eye, CreditCard as Edit, Trash2, Ban, CircleCheck as CheckCircle, Copy, ExternalLink } from 'lucide-react';
+import { Eye, CreditCard as Edit, Trash2, Ban, CircleCheck as CheckCircle, Copy, ExternalLink, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -75,6 +75,13 @@ export function UserTable({
     window.dispatchEvent(event);
   };
 
+  const handleCopyProducts = (userId: string) => {
+    // Dispatch custom event to open copy products dialog
+    const event = new CustomEvent('openCopyProducts', {
+      detail: { targetUserId: userId }
+    });
+    window.dispatchEvent(event);
+  };
   if (loading) {
     return (
       <Card>
@@ -225,12 +232,24 @@ export function UserTable({
                         </Button>
                       )}
 
+                      {/* Copy Products - Only for admins */}
+                      {currentUserRole === 'admin' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyProducts(user.id)}
+                          title="Copiar produtos para outro usuário"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
+                      )}
                       {/* Clone User - Only for admins */}
                       {currentUserRole === 'admin' && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleCloneUser(user.id)}
+                          title="Clonar usuário completo"
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
