@@ -84,9 +84,10 @@ export async function resetUserPassword(userId: string, newPassword: string): Pr
 }
 
 /**
- * Clone user with all associated data using admin privileges (requires JWT)
+ * Simple and efficient user cloning function
+ * Clones user profile, categories, products, and images in one operation
  */
-export async function cloneUserAdmin(
+export async function cloneUserComplete(
   originalUserId: string,
   newUserData: {
     email: string;
@@ -129,110 +130,4 @@ export async function cloneUserAdmin(
   }
 
   return { newUserId: data.newUserId };
-}
-
-/**
- * Clone user with all associated data using API Key (No JWT required - Public endpoint)
- * This function can be called without authentication by providing a valid API Key
- *
- * @param apiKey - The API Key for authentication (X-API-Key header)
- * @param originalUserId - ID of the user to clone from
- * @param newUserData - Data for the new user
- * @returns Promise with the new user ID
- */
-export async function cloneUserPublic(
-  apiKey: string,
-  originalUserId: string,
-  newUserData: {
-    email: string;
-    password: string;
-    name: string;
-    slug: string;
-  }
-): Promise<{ newUserId: string }> {
-  if (!apiKey) {
-    throw new Error('API Key é obrigatória');
-  }
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (!supabaseUrl) {
-    throw new Error('VITE_SUPABASE_URL não configurada');
-  }
-
-  const functionUrl = `${supabaseUrl}/functions/v1/clone-user`;
-
-  try {
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
-      },
-      body: JSON.stringify({
-        originalUserId,
-        newUserData,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData?.error?.message ||
-        `Erro HTTP ${response.status}: ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    if (data?.error) {
-      throw new Error(data.error.message || 'Erro ao clonar usuário');
-    }
-
-    if (!data?.newUserId) {
-      throw new Error('Resposta inválida da função');
-    }
-
-    return { newUserId: data.newUserId };
-  } catch (error: any) {
-    console.error('Error calling clone-user function:', error);
-
-    if (error.message?.includes('fetch') || error.message?.includes('network')) {
-      throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão.');
-    }
-
-    throw new Error(error.message || 'Erro ao clonar usuário');
-  }
-}
-
-/**
- * Clone categories and products from one user to another using admin privileges
- */
-export async function cloneUserCategoriesAndProductsAdmin(
-  sourceUserId: string,
-  targetUserId: string,
-  options: {
-    cloneCategories: boolean;
-    cloneProducts: boolean;
-    mergeStrategy: 'merge' | 'replace';
-  }
-): Promise<{ categoriesCloned: number; productsCloned: number; imagesCloned: number }> {
-  // Import the new clone API
-  const { cloneUserDataAdmin } = await import('./cloneApi');
-  
-  const result = await cloneUserDataAdmin(sourceUserId, targetUserId, {
-    cloneCategories: options.cloneCategories,
-    cloneProducts: options.cloneProducts,
-    mergeStrategy: options.mergeStrategy,
-    copyImages: true
-  });
-
-  if (!result.success) {
-    throw new Error(result.errors.join('; ') || 'Erro na clonagem');
-  }
-
-  return {
-    categoriesCloned: result.categoriesCloned,
-    productsCloned: result.productsCloned,
-    imagesCloned: result.imagesCloned,
-  };
 }

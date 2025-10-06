@@ -55,10 +55,7 @@ import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
 import { cloneUserAdmin } from '@/lib/adminApi';
 import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 import type { SubscriptionPlan, Subscription } from '@/types';
-import { CloneCategoriesProductsDialog } from '@/components/admin/CloneCategoriesProductsDialog';
-import { CopyProductsDialog } from '@/components/admin/CopyProductsDialog';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
-import { CloneProductsPanel } from '@/components/admin/CloneProductsPanel';
 
 const planFormSchema = z.object({
   plan_id: z.string().min(1, 'Selecione um plano'),
@@ -117,10 +114,6 @@ export default function UserDetailPage() {
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [cloning, setCloning] = useState(false);
-  const [showCloneCategoriesProductsDialog, setShowCloneCategoriesProductsDialog] = useState(false);
-  const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
-  const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
-  const [showClonePanel, setShowClonePanel] = useState(false);
 
   const planForm = useForm<z.infer<typeof planFormSchema>>({
     resolver: zodResolver(planFormSchema),
@@ -346,7 +339,7 @@ export default function UserDetailPage() {
 
       console.log('Starting user cloning process...');
       
-      const { newUserId } = await cloneUserAdmin(userDetail.id, {
+      const { newUserId } = await cloneUserComplete(userDetail.id, {
         email: values.email,
         password: values.password,
         name: values.name,
@@ -456,19 +449,11 @@ export default function UserDetailPage() {
         {/* Clone User Buttons - Only for admins */}
         {currentUser?.role === 'admin' && (
           <>
-            <Button
-              variant="default"
-              onClick={() => setShowClonePanel(true)}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Sistema de Clonagem
-            </Button>
-
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline">
                   <Copy className="h-4 w-4 mr-2" />
-                  Clonar Usuário Completo
+                  Clonar Usuário
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -717,16 +702,6 @@ export default function UserDetailPage() {
         </div>
       </div>
 
-      {/* Clone Products Panel */}
-      {showClonePanel && (
-        <div className="mb-6">
-          <CloneProductsPanel
-            targetUserId={userDetail?.id}
-            className="w-full"
-          />
-        </div>
-      )}
-
       {/* Clone User Dialog */}
       <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
         <DialogContent className="max-w-md">
@@ -899,7 +874,6 @@ export default function UserDetailPage() {
           </Form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

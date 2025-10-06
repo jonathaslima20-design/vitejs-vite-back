@@ -615,26 +615,14 @@ export function UserTable({
                           <Link to={`/admin/users/${user.id}`}>
                             <Edit className="h-4 w-4 mr-2" />
                             Ver Detalhes
-                          </Link>
-                        </DropdownMenuItem>
-
-                        {/* Admin-only actions */}
-                        {currentUserRole === 'admin' && (
-                          <>
-                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openSimpleCopy', { detail: { targetUserId: user.id } }))}>
-                              <Zap className="h-4 w-4 mr-2" />
-                              Cópia Simples
-                            </DropdownMenuItem>
-
-
                             <DropdownMenuItem onClick={() => openPasswordDialog(user.id)}>
                               <Key className="h-4 w-4 mr-2" />
                               Alterar Senha
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openClonePanel', { detail: { targetUserId: user.id } }))}>
+                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openUserClone', { detail: { targetUserId: user.id } }))}>
                               <Copy className="h-4 w-4 mr-2" />
-                              Sistema de Clonagem
+                              Clonar Usuário
                             </DropdownMenuItem>
                           </>
                         )}

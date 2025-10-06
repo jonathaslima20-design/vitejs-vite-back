@@ -25,31 +25,23 @@ export default function UsersManagementPage() {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
+  const [cloneTargetUserId, setCloneTargetUserId] = useState<string>('');
   const { user: currentUser } = useAuth();
   const { plans: subscriptionPlans } = useSubscriptionPlans();
 
-  // Listener para abrir dialog de cópia simples
+  // Listener para abrir dialog de clonagem
   useEffect(() => {
-    const handleOpenSimpleCopy = (event: CustomEvent) => {
+    const handleOpenUserClone = (event: CustomEvent) => {
       const { targetUserId } = event.detail;
       if (targetUserId) {
-        // Set the target user and open dialog
+        setCloneTargetUserId(targetUserId);
         setShowSimpleCopyDialog(true);
-        // You might want to pass the targetUserId to the dialog
       }
     };
 
-    const handleOpenClonePanel = (event: CustomEvent) => {
-      const { targetUserId } = event.detail;
-      if (targetUserId) {
-        setShowClonePanel(true);
-      }
-    };
-    window.addEventListener('openSimpleCopy', handleOpenSimpleCopy as EventListener);
-    window.addEventListener('openClonePanel', handleOpenClonePanel as EventListener);
+    window.addEventListener('openUserClone', handleOpenUserClone as EventListener);
     return () => {
-      window.removeEventListener('openSimpleCopy', handleOpenSimpleCopy as EventListener);
-      window.removeEventListener('openClonePanel', handleOpenClonePanel as EventListener);
+      window.removeEventListener('openUserClone', handleOpenUserClone as EventListener);
     };
   }, []);
 
@@ -420,6 +412,7 @@ export default function UsersManagementPage() {
       <SimpleCopyProductsDialog
         open={showSimpleCopyDialog}
         onOpenChange={setShowSimpleCopyDialog}
+        defaultSourceUserId={cloneTargetUserId}
       />
     </div>
   );
