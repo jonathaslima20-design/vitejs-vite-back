@@ -216,10 +216,11 @@ export async function cloneUserCategoriesAndProductsAdmin(
     mergeStrategy: 'merge' | 'replace';
   }
 ): Promise<{ categoriesCloned: number; productsCloned: number; imagesCloned: number }> {
-  const { data: { session } } = await supabase.auth.getSession();
+  // Refresh the session to ensure we have a valid token
+  const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
 
-  if (!session) {
-    throw new Error('Não autenticado');
+  if (refreshError || !session) {
+    throw new Error('Não autenticado ou sessão expirada');
   }
 
   console.log('Calling edge function clone-categories-products:', {
@@ -229,12 +230,6 @@ export async function cloneUserCategoriesAndProductsAdmin(
   });
 
   try {
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-
-    if (!currentSession?.access_token) {
-      throw new Error('Sessão inválida ou expirada. Faça login novamente.');
-    }
-
     console.log('Session valid, invoking edge function...');
 
     const { data, error } = await supabase.functions.invoke('clone-categories-products', {
