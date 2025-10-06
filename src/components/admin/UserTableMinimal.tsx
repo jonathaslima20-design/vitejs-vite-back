@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Eye, Ban, CheckCircle, Copy, ExternalLink, ArrowRightLeft, MoreHorizontal } from 'lucide-react';
+import { Eye, Ban, CircleCheck as CheckCircle, Copy, ExternalLink, ArrowRightLeft, MoveHorizontal as MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

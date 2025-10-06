@@ -1,16 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  CheckCircle, 
-  Ban, 
-  Shield, 
-  X, 
-  Crown, 
-  Loader2, 
-  MoreHorizontal,
-  Save,
-  RotateCcw
-} from 'lucide-react';
+import { CircleCheck as CheckCircle, Ban, Shield, X, Crown, Loader as Loader2, MoveHorizontal as MoreHorizontal, Save, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
