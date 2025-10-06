@@ -2,6 +2,13 @@
   # Clone Categories and Products Edge Function
 
   This function handles selective cloning of categories and products between users.
+  
+  IMPORTANT: This function may take several minutes to complete for users with many products.
+  If you encounter timeout errors, increase the Edge Function timeout in Supabase Dashboard:
+  1. Go to Edge Functions in your Supabase project
+  2. Select 'clone-categories-products' function
+  3. Increase timeout to 300+ seconds (5+ minutes)
+  4. For very large datasets, consider 600+ seconds (10+ minutes)
 
   1. Features
     - Validates user authentication and admin permissions
@@ -37,7 +44,13 @@ Deno.serve(async (req: Request) => {
   try {
     console.log('🚀 Clone function started at:', new Date().toISOString());
     
+    // Set up heartbeat to prevent timeout
+    const heartbeatInterval = setInterval(() => {
+      console.log('💓 Heartbeat:', new Date().toISOString());
+    }, 30000); // Every 30 seconds
+    
     if (req.method === 'OPTIONS') {
+      clearInterval(heartbeatInterval);
       return new Response(null, {
         status: 200,
         headers: corsHeaders
@@ -46,6 +59,7 @@ Deno.serve(async (req: Request) => {
 
     if (req.method !== 'POST') {
       console.error('❌ Invalid method:', req.method);
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Method not allowed' } }),
         {
@@ -58,6 +72,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       console.error('❌ Missing authorization header');
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Missing authorization header' } }),
         {
@@ -96,6 +111,7 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       console.error('❌ User authentication failed:', userError);
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Unauthorized' } }),
         {
@@ -115,6 +131,7 @@ Deno.serve(async (req: Request) => {
 
     if (profileError || !currentUserProfile || currentUserProfile.role !== 'admin') {
       console.error('❌ Permission check failed:', { profileError, role: currentUserProfile?.role });
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Insufficient permissions. Only admins can clone data between users.' } }),
         {
@@ -131,6 +148,7 @@ Deno.serve(async (req: Request) => {
       requestBody = await req.json();
     } catch (parseError) {
       console.error('❌ Failed to parse request body:', parseError);
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Invalid JSON in request body' } }),
         {
@@ -158,6 +176,7 @@ Deno.serve(async (req: Request) => {
 
     if (!sourceUserId || !targetUserId) {
       console.error('❌ Missing required parameters');
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Missing required fields: sourceUserId, targetUserId' } }),
         {
@@ -169,6 +188,7 @@ Deno.serve(async (req: Request) => {
 
     if (sourceUserId === targetUserId) {
       console.error('❌ Source and target are the same');
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Source and target users cannot be the same' } }),
         {
@@ -180,6 +200,7 @@ Deno.serve(async (req: Request) => {
 
     if (!cloneCategories && !cloneProducts) {
       console.error('❌ No clone options selected');
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'At least one option must be selected (categories or products)' } }),
         {
@@ -199,6 +220,7 @@ Deno.serve(async (req: Request) => {
 
     if (sourceUserResult.status === 'rejected' || !sourceUserResult.value.data) {
       console.error('❌ Source user not found:', sourceUserResult.status === 'rejected' ? sourceUserResult.reason : 'No data');
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Source user not found' } }),
         {
@@ -210,6 +232,7 @@ Deno.serve(async (req: Request) => {
 
     if (targetUserResult.status === 'rejected' || !targetUserResult.value.data) {
       console.error('❌ Target user not found:', targetUserResult.status === 'rejected' ? targetUserResult.reason : 'No data');
+      clearInterval(heartbeatInterval);
       return new Response(
         JSON.stringify({ error: { message: 'Target user not found' } }),
         {
@@ -326,6 +349,7 @@ Deno.serve(async (req: Request) => {
 
         if (mergeStrategy === 'merge' && totalAfterClone > listingLimit) {
           console.error('❌ Would exceed listing limit');
+          clearInterval(heartbeatInterval);
           return new Response(
             JSON.stringify({
               error: {
@@ -341,6 +365,7 @@ Deno.serve(async (req: Request) => {
 
         if (mergeStrategy === 'replace' && sourceProducts.length > listingLimit) {
           console.error('❌ Source products exceed target limit');
+          clearInterval(heartbeatInterval);
           return new Response(
             JSON.stringify({
               error: {
@@ -378,7 +403,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // Process products in smaller batches to avoid timeout
-        const BATCH_SIZE = 3; // Process 3 products at a time (reduced from 5)
+        const BATCH_SIZE = 2; // Process 2 products at a time (further reduced to prevent timeout)
         const batches = [];
         for (let i = 0; i < sourceProducts.length; i += BATCH_SIZE) {
           batches.push(sourceProducts.slice(i, i + BATCH_SIZE));
@@ -447,8 +472,8 @@ Deno.serve(async (req: Request) => {
                 console.log(`🖼️ Cloning ${productImages.length} images for product: ${product.title}`);
                 let newFeaturedImageUrl = null;
 
-                // Process images in parallel with concurrency limit
-                const IMAGE_CONCURRENCY = 2; // Reduced from 3 to avoid overwhelming
+                // Process images sequentially to avoid timeout and overwhelming the system
+                const IMAGE_CONCURRENCY = 1; // Process one image at a time
                 const imagePromises = [];
                 
                 for (let i = 0; i < productImages.length; i += IMAGE_CONCURRENCY) {
@@ -461,10 +486,10 @@ Deno.serve(async (req: Request) => {
                       
                       // Add timeout and retry for image fetch
                       const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout (increased)
+                      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout per image
 
                       let imageResponse;
-                      let retries = 3;
+                      let retries = 2; // Reduced retries to save time
                       while (retries > 0) {
                         try {
                           imageResponse = await fetch(image.url, {
@@ -475,11 +500,11 @@ Deno.serve(async (req: Request) => {
                           });
                           if (imageResponse.ok) break;
                           retries--;
-                          if (retries > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+                          if (retries > 0) await new Promise(resolve => setTimeout(resolve, 500)); // Reduced retry delay
                         } catch (fetchError) {
                           retries--;
                           if (retries === 0) throw fetchError;
-                          await new Promise(resolve => setTimeout(resolve, 1000));
+                          await new Promise(resolve => setTimeout(resolve, 500)); // Reduced retry delay
                         }
                       }
                       clearTimeout(timeoutId);
@@ -595,7 +620,7 @@ Deno.serve(async (req: Request) => {
           // Add small delay between batches to prevent overwhelming the system
           if (batchIndex < batches.length - 1) {
             console.log('⏸️ Pausing between batches...');
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2s
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced to 1s to save time
           }
         }
       } else {
@@ -610,6 +635,7 @@ Deno.serve(async (req: Request) => {
       imagesCloned
     });
 
+    clearInterval(heartbeatInterval);
     return new Response(
       JSON.stringify({
         success: true,
@@ -627,6 +653,14 @@ Deno.serve(async (req: Request) => {
 
   } catch (error) {
     console.error('💥 Unexpected error in clone-categories-products function:', error);
+    
+    // Clear heartbeat interval on error
+    try {
+      clearInterval(heartbeatInterval);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
     // Log additional context for debugging
@@ -636,10 +670,11 @@ Deno.serve(async (req: Request) => {
       stack: error.stack?.substring(0, 500)
     });
     
+    // Ensure we always return a proper JSON response
     return new Response(
       JSON.stringify({
         error: {
-          message: 'Internal server error: ' + errorMessage,
+          message: errorMessage.includes('Internal server error') ? errorMessage : 'Internal server error: ' + errorMessage,
           timestamp: new Date().toISOString()
         }
       }),
