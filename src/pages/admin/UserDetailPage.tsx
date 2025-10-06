@@ -890,7 +890,7 @@ export default function UserDetailPage() {
         }}
         defaultTargetUserId={userDetail?.id}
       />
-    </div>
+
       {/* Copy Products Dialog */}
       <CopyProductsDialog
         open={showCopyProductsDialog}
@@ -903,5 +903,6 @@ export default function UserDetailPage() {
         }}
         defaultTargetUserId={userDetail?.id}
       />
+    </div>
   );
 }
