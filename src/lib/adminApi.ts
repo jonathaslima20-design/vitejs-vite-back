@@ -15,7 +15,22 @@ export async function updateUserEmailAdmin(userId: string, newEmail: string): Pr
   });
 
   if (error) {
-    throw new Error(error.message || 'Erro ao atualizar email');
+    // Extract detailed error message from Edge Function response
+    let errorMessage = 'Erro ao atualizar email';
+    if (error.context?.body) {
+      try {
+        const errorBody = typeof error.context.body === 'string' 
+          ? JSON.parse(error.context.body) 
+          : error.context.body;
+        errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        errorMessage = error.message || errorMessage;
+      }
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   if (data?.error) {
@@ -38,7 +53,22 @@ export async function changeUserPassword(userId: string, newPassword: string): P
   });
 
   if (error) {
-    throw new Error(error.message || 'Erro ao alterar senha');
+    // Extract detailed error message from Edge Function response
+    let errorMessage = 'Erro ao alterar senha';
+    if (error.context?.body) {
+      try {
+        const errorBody = typeof error.context.body === 'string' 
+          ? JSON.parse(error.context.body) 
+          : error.context.body;
+        errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        errorMessage = error.message || errorMessage;
+      }
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   if (data?.error) {
@@ -76,7 +106,22 @@ export async function cloneUserAdmin(
   });
 
   if (error) {
-    throw new Error(error.message || 'Erro ao clonar usuário');
+    // Extract detailed error message from Edge Function response
+    let errorMessage = 'Erro ao clonar usuário';
+    if (error.context?.body) {
+      try {
+        const errorBody = typeof error.context.body === 'string' 
+          ? JSON.parse(error.context.body) 
+          : error.context.body;
+        errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        errorMessage = error.message || errorMessage;
+      }
+    } else {
+      errorMessage = error.message || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   if (data?.error) {
@@ -207,15 +252,31 @@ export async function cloneUserCategoriesAndProductsAdmin(
     if (error) {
       console.error('Edge function error:', error);
 
+      // Extract detailed error message from Edge Function response
+      let errorMessage = 'Erro ao clonar dados';
+      if (error.context?.body) {
+        try {
+          const errorBody = typeof error.context.body === 'string' 
+            ? JSON.parse(error.context.body) 
+            : error.context.body;
+          errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
+        } catch (parseError) {
+          // If parsing fails, use the original error message
+          errorMessage = error.message || errorMessage;
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
       if (error.message?.includes('Failed to send a request')) {
-        throw new Error('Não foi possível conectar à função. Verifique se a função edge está deployada corretamente.');
+        errorMessage = 'Não foi possível conectar à função. Verifique se a função edge está deployada corretamente.';
       }
 
       if (error.message?.includes('FunctionsHttpError')) {
-        throw new Error(`Erro HTTP na função: ${error.message}`);
+        errorMessage = `Erro HTTP na função: ${errorMessage}`;
       }
 
-      throw new Error(error.message || 'Erro ao clonar dados');
+      throw new Error(errorMessage);
     }
 
     if (data?.error) {
