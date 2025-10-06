@@ -4,13 +4,13 @@
 
 ## API Pública - Copiar Produtos
 
-### Função Edge: `copy-products-public`
+### Função Edge: `enhanced-clone-products`
 
-Esta função permite copiar produtos e categorias entre usuários usando autenticação por API Key (sem necessidade de JWT).
+Esta função permite clonar produtos e categorias entre usuários com controle avançado e autenticação por API Key.
 
 #### Endpoint
 ```
-POST /functions/v1/copy-products-public
+POST /functions/v1/enhanced-clone-products
 ```
 
 #### Headers Obrigatórios
@@ -23,23 +23,38 @@ X-API-Key: [SUA_API_KEY]
 ```json
 {
   "sourceUserId": "uuid-do-usuario-origem",
-  "targetUserId": "uuid-do-usuario-destino"
+  "targetUserId": "uuid-do-usuario-destino",
+  "options": {
+    "cloneCategories": true,
+    "cloneProducts": true,
+    "mergeStrategy": "merge",
+    "copyImages": true,
+    "maxProducts": 100
+  }
 }
 ```
 
 #### Parâmetros
 - `sourceUserId`: ID do usuário de onde copiar os dados
 - `targetUserId`: ID do usuário para onde copiar os dados
+- `options.cloneCategories`: Se deve clonar categorias (boolean)
+- `options.cloneProducts`: Se deve clonar produtos (boolean)
+- `options.mergeStrategy`: "merge" (adicionar) ou "replace" (substituir)
+- `options.copyImages`: Se deve copiar imagens fisicamente (boolean)
+- `options.maxProducts`: Limite máximo de produtos a clonar (opcional)
 
 #### Resposta de Sucesso
 ```json
 {
   "success": true,
-  "message": "Products and categories copied successfully",
+  "message": "Clone operation completed successfully",
   "stats": {
     "categoriesCloned": 5,
     "productsCloned": 23,
-    "imagesCloned": 67
+    "imagesCloned": 67,
+    "errors": [],
+    "skipped": 0,
+    "totalProcessed": 28
   }
 }
 ```
@@ -47,12 +62,19 @@ X-API-Key: [SUA_API_KEY]
 #### Exemplo de Uso com cURL
 ```bash
 curl -X POST \
-  "https://[SEU_PROJETO].supabase.co/functions/v1/copy-products-public" \
+  "https://[SEU_PROJETO].supabase.co/functions/v1/enhanced-clone-products" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: [SUA_API_KEY]" \
   -d '{
     "sourceUserId": "123e4567-e89b-12d3-a456-426614174000",
-    "targetUserId": "987fcdeb-51a2-43d7-8f9e-123456789abc"
+    "targetUserId": "987fcdeb-51a2-43d7-8f9e-123456789abc",
+    "options": {
+      "cloneCategories": true,
+      "cloneProducts": true,
+      "mergeStrategy": "merge",
+      "copyImages": true,
+      "maxProducts": 100
+    }
   }'
 ```
 
@@ -60,29 +82,30 @@ curl -X POST \
 
 A API Key deve ser configurada como variável de ambiente no Supabase:
 ```
-COPY_PRODUCTS_API_KEY=sua_chave_secreta_aqui
+ENHANCED_CLONE_API_KEY=sua_chave_secreta_aqui
 ```
 
 #### Funcionalidades
 
-1. **Cópia de Categorias**: Copia todas as categorias do usuário de origem
-2. **Cópia de Produtos**: Copia todos os produtos com metadados completos
-3. **Cópia de Imagens**: Baixa e re-upload todas as imagens para novos arquivos
-4. **Mesclagem Inteligente**: Adiciona aos dados existentes sem duplicar categorias
-5. **Validações**: Verifica limites de produtos e existência de usuários
-6. **Tratamento de Erros**: Logs detalhados e rollback em caso de falha
+1. **Clonagem Configurável**: Escolha o que clonar (categorias, produtos, imagens)
+2. **Estratégias de Mesclagem**: Merge (adicionar) ou Replace (substituir)
+3. **Cópia Física de Imagens**: Baixa e re-upload todas as imagens
+4. **Controle de Limites**: Respeita limites de produtos dos usuários
+5. **Progress Tracking**: Acompanhamento em tempo real do progresso
+6. **Tratamento Robusto de Erros**: Logs detalhados e recuperação de falhas
+7. **Validação Avançada**: Verificações pré-operação para evitar problemas
 
-#### Diferenças da Função Admin
+#### Modos de Operação
 
-- ✅ **Sem JWT**: Usa API Key em vez de autenticação JWT
-- ✅ **Pública**: Pode ser chamada de sistemas externos
-- ✅ **Funcionalidade Simplificada**: Copia produtos e categorias com estratégia de mesclagem
-- ✅ **Logs Detalhados**: Melhor rastreamento de erros
-- ✅ **Validações Robustas**: Verificações de limite e permissões
+1. **Clonagem Rápida**: Sem imagens, ~30 segundos
+2. **Clonagem Avançada**: Com imagens e controle total, ~5-15 minutos
+3. **API Pública**: Via API Key, para integrações externas
 
 #### Segurança
 
-- API Key deve ser mantida em segredo
-- Função valida existência de usuários
-- Respeita limites de produtos dos usuários
-- Logs de auditoria para todas as operações
+- ✅ API Key deve ser mantida em segredo
+- ✅ Validação de existência de usuários
+- ✅ Respeito aos limites de produtos
+- ✅ Logs de auditoria detalhados
+- ✅ Timeout protection e heartbeat
+- ✅ Cleanup automático em caso de falha

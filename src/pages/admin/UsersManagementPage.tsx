@@ -39,9 +39,17 @@ export default function UsersManagementPage() {
       }
     };
 
+    const handleOpenClonePanel = (event: CustomEvent) => {
+      const { targetUserId } = event.detail;
+      if (targetUserId) {
+        setShowClonePanel(true);
+      }
+    };
     window.addEventListener('openSimpleCopy', handleOpenSimpleCopy as EventListener);
+    window.addEventListener('openClonePanel', handleOpenClonePanel as EventListener);
     return () => {
       window.removeEventListener('openSimpleCopy', handleOpenSimpleCopy as EventListener);
+      window.removeEventListener('openClonePanel', handleOpenClonePanel as EventListener);
     };
   }, []);
 

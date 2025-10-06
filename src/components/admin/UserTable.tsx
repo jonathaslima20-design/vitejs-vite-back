@@ -249,9 +249,9 @@ export function UserTable({
                           Alterar Senha
                         </DropdownMenuItem>
 
-                        <DropdownMenuItem onClick={() => openCloneUser(user.id)}>
+                        <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openClonePanel', { detail: { targetUserId: user.id } }))}>
                           <Copy className="h-4 w-4 mr-2" />
-                          Clonar Usuário
+                          Sistema de Clonagem
                         </DropdownMenuItem>
                       </>
                     )}
@@ -626,19 +626,15 @@ export function UserTable({
                               Cópia Simples
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openSimpleCopy', { detail: { targetUserId: user.id } }))}>
-                              <Zap className="h-4 w-4 mr-2" />
-                              Cópia Simples
-                            </DropdownMenuItem>
 
                             <DropdownMenuItem onClick={() => openPasswordDialog(user.id)}>
                               <Key className="h-4 w-4 mr-2" />
                               Alterar Senha
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => openCloneUser(user.id)}>
+                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openClonePanel', { detail: { targetUserId: user.id } }))}>
                               <Copy className="h-4 w-4 mr-2" />
-                              Clonar Usuário
+                              Sistema de Clonagem
                             </DropdownMenuItem>
                           </>
                         )}

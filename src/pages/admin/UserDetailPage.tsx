@@ -58,6 +58,7 @@ import type { SubscriptionPlan, Subscription } from '@/types';
 import { CloneCategoriesProductsDialog } from '@/components/admin/CloneCategoriesProductsDialog';
 import { CopyProductsDialog } from '@/components/admin/CopyProductsDialog';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
+import { CloneProductsPanel } from '@/components/admin/CloneProductsPanel';
 
 const planFormSchema = z.object({
   plan_id: z.string().min(1, 'Selecione um plano'),
@@ -119,6 +120,7 @@ export default function UserDetailPage() {
   const [showCloneCategoriesProductsDialog, setShowCloneCategoriesProductsDialog] = useState(false);
   const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
   const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
+  const [showClonePanel, setShowClonePanel] = useState(false);
 
   const planForm = useForm<z.infer<typeof planFormSchema>>({
     resolver: zodResolver(planFormSchema),
@@ -456,26 +458,10 @@ export default function UserDetailPage() {
           <>
             <Button
               variant="default"
-              onClick={() => setShowSimpleCopyDialog(true)}
+              onClick={() => setShowClonePanel(true)}
             >
               <Copy className="h-4 w-4 mr-2" />
-              Cópia Simples (Sem Limites)
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => setShowCopyProductsDialog(true)}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copiar Produtos (API Pública)
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => setShowCloneCategoriesProductsDialog(true)}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Receber Dados
+              Sistema de Clonagem
             </Button>
 
             <AlertDialog>
@@ -731,6 +717,16 @@ export default function UserDetailPage() {
         </div>
       </div>
 
+      {/* Clone Products Panel */}
+      {showClonePanel && (
+        <div className="mb-6">
+          <CloneProductsPanel
+            targetUserId={userDetail?.id}
+            className="w-full"
+          />
+        </div>
+      )}
+
       {/* Clone User Dialog */}
       <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
         <DialogContent className="max-w-md">
@@ -904,44 +900,6 @@ export default function UserDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Clone Categories and Products Dialog */}
-      <CloneCategoriesProductsDialog
-        open={showCloneCategoriesProductsDialog}
-        onOpenChange={(open) => {
-          setShowCloneCategoriesProductsDialog(open);
-          if (!open) {
-            // Refresh user data after closing
-            fetchUserDetail();
-          }
-        }}
-        defaultTargetUserId={userDetail?.id}
-      />
-
-      {/* Simple Copy Products Dialog */}
-      <SimpleCopyProductsDialog
-        open={showSimpleCopyDialog}
-        onOpenChange={(open) => {
-          setShowSimpleCopyDialog(open);
-          if (!open) {
-            // Refresh user data after closing
-            fetchUserDetail();
-          }
-        }}
-        defaultTargetUserId={userDetail?.id}
-      />
-
-      {/* Copy Products Dialog */}
-      <CopyProductsDialog
-        open={showCopyProductsDialog}
-        onOpenChange={(open) => {
-          setShowCopyProductsDialog(open);
-          if (!open) {
-            // Refresh user data after closing
-            fetchUserDetail();
-          }
-        }}
-        defaultTargetUserId={userDetail?.id}
-      />
     </div>
   );
 }

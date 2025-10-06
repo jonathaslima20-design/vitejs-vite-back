@@ -216,218 +216,23 @@ export async function cloneUserCategoriesAndProductsAdmin(
     mergeStrategy: 'merge' | 'replace';
   }
 ): Promise<{ categoriesCloned: number; productsCloned: number; imagesCloned: number }> {
-  console.log('🔄 Starting clone operation:', {
-    sourceUserId: sourceUserId.substring(0, 8),
-    targetUserId: targetUserId.substring(0, 8),
-    options
+  // Import the new clone API
+  const { cloneUserDataAdmin } = await import('./cloneApi');
+  
+  const result = await cloneUserDataAdmin(sourceUserId, targetUserId, {
+    cloneCategories: options.cloneCategories,
+    cloneProducts: options.cloneProducts,
+    mergeStrategy: options.mergeStrategy,
+    copyImages: true
   });
 
-  // Refresh the session to ensure we have a valid token
-  const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
-
-  if (refreshError || !session) {
-    console.error('❌ Session refresh failed:', refreshError);
-    throw new Error('Não autenticado ou sessão expirada');
+  if (!result.success) {
+    throw new Error(result.errors.join('; ') || 'Erro na clonagem');
   }
 
-  // Validate users exist before calling edge function
-  const [sourceUser, targetUser] = await Promise.all([
-    supabase.from('users').select('id, name').eq('id', sourceUserId).single(),
-    supabase.from('users').select('id, name, listing_limit').eq('id', targetUserId).single()
-  ]);
-
-  if (sourceUser.error || !sourceUser.data) {
-    throw new Error('Usuário de origem não encontrado');
-  }
-
-  if (targetUser.error || !targetUser.data) {
-    throw new Error('Usuário de destino não encontrado');
-  }
-
-  console.log('✅ Users validated:', {
-    source: sourceUser.data.name,
-    target: targetUser.data.name
-  });
-
-  try {
-    console.log('🚀 Invoking edge function with extended timeout...');
-
-    // Create a promise with custom timeout (5 minutes)
-    const invokePromise = supabase.functions.invoke('clone-categories-products', {
-      body: {
-        sourceUserId,
-        targetUserId,
-        cloneCategories: options.cloneCategories,
-        cloneProducts: options.cloneProducts,
-        mergeStrategy: options.mergeStrategy,
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Add timeout wrapper - increased to 10 minutes for large operations
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout: Operação demorou mais de 10 minutos')), 10 * 60 * 1000);
-    });
-
-    const { data, error } = await Promise.race([invokePromise, timeoutPromise]) as any;
-
-    console.log('📥 Edge function response received:', { 
-      hasData: !!data, 
-      hasError: !!error,
-      errorType: error?.name || 'none'
-    });
-
-    if (error) {
-      console.error('Edge function error:', {
-        name: error.name,
-        message: error.message,
-        status: error.status,
-        context: error.context,
-        stack: error.stack?.substring(0, 300)
-      });
-
-      // Extract detailed error message from Edge Function response
-      let errorMessage = 'Erro ao clonar dados';
-      let detailedInfo = '';
-
-      // Check for timeout-related errors first
-      if (error.message?.includes('Unexpected end of JSON input') || 
-          error.message?.includes('Internal server error: Unexpected end of JSON input')) {
-        errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
-                     '1. Acesse o Supabase Dashboard\n' +
-                     '2. Vá em "Edge Functions"\n' +
-                     '3. Selecione a função "clone-categories-products"\n' +
-                     '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
-                     'Alternativamente, tente clonar menos produtos por vez.';
-        throw new Error(errorMessage);
-      }
-
-      // Enhanced error parsing with more debug info
-      if (error.message?.includes('Failed to send a request')) {
-        errorMessage = 'Não foi possível conectar à função. Verifique se a função edge está deployada corretamente.';
-        detailedInfo = error.message;
-      } else if (error.message?.includes('FunctionsHttpError')) {
-        // Try to extract more details from the error
-        if (error.context?.body) {
-          try {
-            const errorBody = typeof error.context.body === 'string'
-              ? JSON.parse(error.context.body)
-              : error.context.body;
-            
-            // Check if the parsed body indicates a timeout
-            if (errorBody.error?.message?.includes('Unexpected end of JSON input')) {
-              errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
-                           '1. Acesse o Supabase Dashboard\n' +
-                           '2. Vá em "Edge Functions"\n' +
-                           '3. Selecione a função "clone-categories-products"\n' +
-                           '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
-                           'Alternativamente, tente clonar menos produtos por vez.';
-              throw new Error(errorMessage);
-            }
-            
-            errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
-            detailedInfo = `Status: ${error.status || 'unknown'}`;
-          } catch (parseError) {
-            console.warn('Failed to parse error body:', parseError);
-            // Check if the original error message indicates timeout
-            if (error.message?.includes('Unexpected end of JSON input')) {
-              errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
-                           '1. Acesse o Supabase Dashboard\n' +
-                           '2. Vá em "Edge Functions"\n' +
-                           '3. Selecione a função "clone-categories-products"\n' +
-                           '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
-                           'Alternativamente, tente clonar menos produtos por vez.';
-            } else {
-              errorMessage = error.message || errorMessage;
-            }
-            detailedInfo = `Parse error: ${parseError.message}`;
-          }
-        } else {
-          // Include HTTP status if available
-          const statusInfo = error.status ? ` (Status: ${error.status})` : '';
-          errorMessage = `Erro HTTP na função${statusInfo}: ${error.message || 'Erro desconhecido'}`;
-          detailedInfo = JSON.stringify({ status: error.status, headers: error.headers });
-        }
-      } else if (error.context?.body) {
-        try {
-          const errorBody = typeof error.context.body === 'string'
-            ? JSON.parse(error.context.body)
-            : error.context.body;
-          
-          // Check for timeout in context body
-          if (errorBody.error?.message?.includes('Unexpected end of JSON input')) {
-            errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
-                         '1. Acesse o Supabase Dashboard\n' +
-                         '2. Vá em "Edge Functions"\n' +
-                         '3. Selecione a função "clone-categories-products"\n' +
-                         '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
-                         'Alternativamente, tente clonar menos produtos por vez.';
-            throw new Error(errorMessage);
-          }
-          
-          errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
-        } catch (parseError) {
-          console.warn('Failed to parse error context:', parseError);
-          errorMessage = error.message || errorMessage;
-        }
-      } else {
-        errorMessage = error.message || errorMessage;
-      }
-
-      console.error('❌ Final error message:', errorMessage);
-      if (detailedInfo) {
-        console.error('🔍 Detailed error info:', detailedInfo);
-      }
-
-      throw new Error(errorMessage);
-    }
-
-    if (data?.error) {
-      console.error('❌ Edge function returned error:', data.error);
-      
-      // Check for timeout in data error
-      if (data.error.message?.includes('Unexpected end of JSON input')) {
-        const timeoutMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
-                              '1. Acesse o Supabase Dashboard\n' +
-                              '2. Vá em "Edge Functions"\n' +
-                              '3. Selecione a função "clone-categories-products"\n' +
-                              '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
-                              'Alternativamente, tente clonar menos produtos por vez.';
-        throw new Error(timeoutMessage);
-      }
-      
-      throw new Error(data.error.message || 'Erro ao clonar dados');
-    }
-
-    if (!data?.stats) {
-      console.error('Invalid response from edge function:', data);
-      throw new Error('Resposta inválida da função');
-    }
-
-    console.log('✅ Clone completed successfully:', data.stats);
-
-    return {
-      categoriesCloned: data.stats.categoriesCloned || 0,
-      productsCloned: data.stats.productsCloned || 0,
-      imagesCloned: data.stats.imagesCloned || 0,
-    };
-  } catch (error: any) {
-    console.error('Error calling clone-categories-products function:', error);
-
-    // Enhanced error categorization
-    if (error.message?.includes('Timeout')) {
-      throw new Error('A operação demorou muito para ser concluída. Tente novamente com menos produtos ou em horário de menor movimento.');
-    } else if (error.message?.includes('fetch') || error.message?.includes('network')) {
-      throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.');
-    } else if (error.message?.includes('JWT') || error.message?.includes('token')) {
-      throw new Error('Sessão expirada. Faça login novamente e tente a operação.');
-    } else if (error.message?.includes('limit') || error.message?.includes('quota')) {
-      throw new Error('Limite de recursos atingido. Tente novamente em alguns minutos.');
-    }
-
-    throw new Error(error.message || 'Erro ao clonar dados');
-  }
+  return {
+    categoriesCloned: result.categoriesCloned,
+    productsCloned: result.productsCloned,
+    imagesCloned: result.imagesCloned,
+  };
 }
