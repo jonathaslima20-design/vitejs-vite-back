@@ -169,6 +169,16 @@ export function CloneCategoriesProductsDialog({
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setCloning(true);
+      
+      console.log('🚀 Starting clone operation:', {
+        sourceUserId: values.sourceUserId.substring(0, 8),
+        targetUserId: values.targetUserId.substring(0, 8),
+        options: {
+          cloneCategories: values.cloneCategories,
+          cloneProducts: values.cloneProducts,
+          mergeStrategy: values.mergeStrategy
+        }
+      });
 
       const result = await cloneUserCategoriesAndProductsAdmin(
         values.sourceUserId,
@@ -179,6 +189,8 @@ export function CloneCategoriesProductsDialog({
           mergeStrategy: values.mergeStrategy,
         }
       );
+
+      console.log('✅ Clone operation completed:', result);
 
       const messages = [];
       if (result.categoriesCloned > 0) {
@@ -196,8 +208,28 @@ export function CloneCategoriesProductsDialog({
       onOpenChange(false);
       form.reset();
     } catch (error: any) {
-      console.error('Error cloning data:', error);
-      toast.error('Erro ao clonar dados: ' + error.message);
+      console.error('❌ Error cloning data:', error);
+      
+      // Enhanced error handling with specific messages
+      let userFriendlyMessage = 'Erro ao clonar dados';
+      
+      if (error.message?.includes('Timeout')) {
+        userFriendlyMessage = 'A operação demorou muito para ser concluída. Tente clonar menos produtos por vez ou tente novamente em horário de menor movimento.';
+      } else if (error.message?.includes('conectar')) {
+        userFriendlyMessage = 'Problema de conexão com o servidor. Verifique sua internet e tente novamente.';
+      } else if (error.message?.includes('sessão') || error.message?.includes('autenticado')) {
+        userFriendlyMessage = 'Sua sessão expirou. Faça login novamente e tente a operação.';
+      } else if (error.message?.includes('limit')) {
+        userFriendlyMessage = 'Limite de produtos excedido. O usuário de destino não pode receber todos os produtos.';
+      } else if (error.message?.includes('não encontrado')) {
+        userFriendlyMessage = 'Um dos usuários selecionados não foi encontrado. Verifique se ambos existem.';
+      } else if (error.message?.includes('permissão') || error.message?.includes('permission')) {
+        userFriendlyMessage = 'Você não tem permissão para realizar esta operação.';
+      } else {
+        userFriendlyMessage = error.message || 'Erro inesperado durante a clonagem';
+      }
+      
+      toast.error(userFriendlyMessage);
     } finally {
       setCloning(false);
     }

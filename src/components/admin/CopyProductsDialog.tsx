@@ -160,12 +160,19 @@ export function CopyProductsDialog({
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setCopying(true);
+      
+      console.log('🚀 Starting copy operation:', {
+        sourceUserId: values.sourceUserId.substring(0, 8),
+        targetUserId: values.targetUserId.substring(0, 8)
+      });
 
       // Use admin API (requires JWT)
       const result = await copyProductsAdmin(
         values.sourceUserId,
         values.targetUserId
       );
+
+      console.log('✅ Copy operation completed:', result);
 
       const messages = [];
       if (result.categoriesCloned > 0) {
@@ -183,8 +190,26 @@ export function CopyProductsDialog({
       onOpenChange(false);
       form.reset();
     } catch (error: any) {
-      console.error('Error copying data:', error);
-      toast.error('Erro ao copiar dados: ' + error.message);
+      console.error('❌ Error copying data:', error);
+      
+      // Enhanced error handling with specific messages
+      let userFriendlyMessage = 'Erro ao copiar dados';
+      
+      if (error.message?.includes('Timeout')) {
+        userFriendlyMessage = 'A operação demorou muito para ser concluída. Tente novamente com menos produtos.';
+      } else if (error.message?.includes('conectar')) {
+        userFriendlyMessage = 'Problema de conexão. Verifique sua internet e tente novamente.';
+      } else if (error.message?.includes('sessão') || error.message?.includes('autenticado')) {
+        userFriendlyMessage = 'Sua sessão expirou. Faça login novamente.';
+      } else if (error.message?.includes('limit')) {
+        userFriendlyMessage = 'Limite de produtos excedido. Verifique o limite do usuário de destino.';
+      } else if (error.message?.includes('não encontrado')) {
+        userFriendlyMessage = 'Um dos usuários não foi encontrado. Verifique se ambos existem.';
+      } else {
+        userFriendlyMessage = error.message || 'Erro inesperado ao copiar dados';
+      }
+      
+      toast.error(userFriendlyMessage);
     } finally {
       setCopying(false);
     }
