@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Loader as Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader as Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useSubscriptionPlans } from '@/hooks/useSubscriptionPlans';
 import type { User } from '@/types';
 import { getErrorMessage } from '@/lib/errorMessages';
-import { UserFilters } from '@/components/admin/UserFilters';
-import { UserTable } from '@/components/admin/UserTable';
-import { UserBulkActionsPanel } from '@/components/admin/UserBulkActionsPanel';
+import { UserListControls } from '@/components/admin/UserListControls';
+import { UserTableMinimal } from '@/components/admin/UserTableMinimal';
+import { FloatingUserBulkActions } from '@/components/admin/FloatingUserBulkActions';
 import { UserSummaryCards } from '@/components/admin/UserSummaryCards';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
 
@@ -28,6 +26,7 @@ export default function UsersManagementPage() {
   const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
   const [cloneTargetUserId, setCloneTargetUserId] = useState<string>('');
   const [copyTargetUserId, setCopyTargetUserId] = useState<string>('');
+  const [showSelection, setShowSelection] = useState(false);
   const { user: currentUser } = useAuth();
   const { plans: subscriptionPlans } = useSubscriptionPlans();
 
@@ -161,8 +160,12 @@ export default function UsersManagementPage() {
       const newSet = new Set(prev);
       if (checked) {
         newSet.add(userId);
+        setShowSelection(true);
       } else {
         newSet.delete(userId);
+        if (newSet.size === 0) {
+          setShowSelection(false);
+        }
       }
       return newSet;
     });
@@ -171,8 +174,10 @@ export default function UsersManagementPage() {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedUsers(new Set(filteredUsers.map(user => user.id)));
+      setShowSelection(true);
     } else {
       setSelectedUsers(new Set());
+      setShowSelection(false);
     }
   };
 
@@ -360,40 +365,11 @@ export default function UsersManagementPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Gestão de Usuários</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie usuários, planos e permissões da plataforma
-          </p>
-        </div>
-        <Button asChild>
-          <Link to="/admin/users/new">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Usuário
-          </Link>
-        </Button>
-      </div>
-
       {/* Summary Cards */}
       <UserSummaryCards users={users} />
 
-      {/* Bulk Actions Panel */}
-      <UserBulkActionsPanel
-        selectedCount={selectedUsers.size}
-        selectedUsers={filteredUsers.filter(user => selectedUsers.has(user.id))}
-        onClearSelection={() => setSelectedUsers(new Set())}
-        onBulkActivatePlan={handleBulkActivatePlan}
-        onBulkBlockUsers={handleBulkBlockUsers}
-        onBulkUnblockUsers={handleBulkUnblockUsers}
-        onBulkChangeRole={handleBulkChangeRole}
-        loading={bulkActionLoading}
-        subscriptionPlans={subscriptionPlans}
-        currentUserRole={currentUser?.role || ''}
-      />
-
-      {/* Filters */}
-      <UserFilters
+      {/* Controls */}
+      <UserListControls
         searchQuery={searchQuery}
         roleFilter={roleFilter}
         statusFilter={statusFilter}
@@ -408,7 +384,7 @@ export default function UsersManagementPage() {
       />
 
       {/* Users Table */}
-      <UserTable
+      <UserTableMinimal
         users={filteredUsers}
         selectedUsers={selectedUsers}
         onSelectUser={handleSelectUser}
@@ -416,6 +392,24 @@ export default function UsersManagementPage() {
         onToggleBlock={handleToggleBlock}
         onDeleteUser={handleDeleteUser}
         loading={loading}
+        currentUserRole={currentUser?.role || ''}
+        showSelection={showSelection}
+      />
+
+      {/* Floating Bulk Actions */}
+      <FloatingUserBulkActions
+        selectedCount={selectedUsers.size}
+        selectedUsers={filteredUsers.filter(user => selectedUsers.has(user.id))}
+        onClearSelection={() => {
+          setSelectedUsers(new Set());
+          setShowSelection(false);
+        }}
+        onBulkActivatePlan={handleBulkActivatePlan}
+        onBulkBlockUsers={handleBulkBlockUsers}
+        onBulkUnblockUsers={handleBulkUnblockUsers}
+        onBulkChangeRole={handleBulkChangeRole}
+        loading={bulkActionLoading}
+        subscriptionPlans={subscriptionPlans}
         currentUserRole={currentUser?.role || ''}
       />
 
