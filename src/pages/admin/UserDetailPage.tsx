@@ -56,6 +56,7 @@ import { cloneUserAdmin } from '@/lib/adminApi';
 import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 import type { SubscriptionPlan, Subscription } from '@/types';
 import { CloneCategoriesProductsDialog } from '@/components/admin/CloneCategoriesProductsDialog';
+import { CopyProductsDialog } from '@/components/admin/CopyProductsDialog';
 
 const planFormSchema = z.object({
   plan_id: z.string().min(1, 'Selecione um plano'),
@@ -115,6 +116,7 @@ export default function UserDetailPage() {
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [showCloneCategoriesProductsDialog, setShowCloneCategoriesProductsDialog] = useState(false);
+  const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
 
   const planForm = useForm<z.infer<typeof planFormSchema>>({
     resolver: zodResolver(planFormSchema),
@@ -434,6 +436,14 @@ export default function UserDetailPage() {
         {/* Clone User Buttons - Only for admins */}
         {currentUser?.role === 'admin' && (
           <>
+            <Button
+              variant="outline"
+              onClick={() => setShowCopyProductsDialog(true)}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar Produtos (API Pública)
+            </Button>
+
             <Button
               variant="outline"
               onClick={() => setShowCloneCategoriesProductsDialog(true)}
@@ -881,5 +891,17 @@ export default function UserDetailPage() {
         defaultTargetUserId={userDetail?.id}
       />
     </div>
+      {/* Copy Products Dialog */}
+      <CopyProductsDialog
+        open={showCopyProductsDialog}
+        onOpenChange={(open) => {
+          setShowCopyProductsDialog(open);
+          if (!open) {
+            // Refresh user data after closing
+            fetchUserDetail();
+          }
+        }}
+        defaultTargetUserId={userDetail?.id}
+      />
   );
 }
