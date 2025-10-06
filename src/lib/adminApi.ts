@@ -267,9 +267,9 @@ export async function cloneUserCategoriesAndProductsAdmin(
       },
     });
 
-    // Add timeout wrapper
+    // Add timeout wrapper - increased to 10 minutes for large operations
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout: Operação demorou mais de 5 minutos')), 5 * 60 * 1000);
+      setTimeout(() => reject(new Error('Timeout: Operação demorou mais de 10 minutos')), 10 * 60 * 1000);
     });
 
     const { data, error } = await Promise.race([invokePromise, timeoutPromise]) as any;
@@ -281,33 +281,46 @@ export async function cloneUserCategoriesAndProductsAdmin(
     });
 
     if (error) {
-      console.error('Edge function error:', error);
+      console.error('Edge function error:', {
+        name: error.name,
+        message: error.message,
+        status: error.status,
+        context: error.context,
+        stack: error.stack?.substring(0, 300)
+      });
 
       // Extract detailed error message from Edge Function response
       let errorMessage = 'Erro ao clonar dados';
-      
-      // Enhanced error parsing
+      let detailedInfo = '';
+
+      // Enhanced error parsing with more debug info
       if (error.message?.includes('Failed to send a request')) {
         errorMessage = 'Não foi possível conectar à função. Verifique se a função edge está deployada corretamente.';
+        detailedInfo = error.message;
       } else if (error.message?.includes('FunctionsHttpError')) {
         // Try to extract more details from the error
         if (error.context?.body) {
           try {
-            const errorBody = typeof error.context.body === 'string' 
-              ? JSON.parse(error.context.body) 
+            const errorBody = typeof error.context.body === 'string'
+              ? JSON.parse(error.context.body)
               : error.context.body;
             errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
+            detailedInfo = `Status: ${error.status || 'unknown'}`;
           } catch (parseError) {
             console.warn('Failed to parse error body:', parseError);
             errorMessage = error.message || errorMessage;
+            detailedInfo = `Parse error: ${parseError.message}`;
           }
         } else {
-          errorMessage = `Erro HTTP na função: ${error.message || 'Erro desconhecido'}`;
+          // Include HTTP status if available
+          const statusInfo = error.status ? ` (Status: ${error.status})` : '';
+          errorMessage = `Erro HTTP na função${statusInfo}: ${error.message || 'Erro desconhecido'}`;
+          detailedInfo = JSON.stringify({ status: error.status, headers: error.headers });
         }
       } else if (error.context?.body) {
         try {
-          const errorBody = typeof error.context.body === 'string' 
-            ? JSON.parse(error.context.body) 
+          const errorBody = typeof error.context.body === 'string'
+            ? JSON.parse(error.context.body)
             : error.context.body;
           errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
         } catch (parseError) {
@@ -319,6 +332,9 @@ export async function cloneUserCategoriesAndProductsAdmin(
       }
 
       console.error('❌ Final error message:', errorMessage);
+      if (detailedInfo) {
+        console.error('🔍 Detailed error info:', detailedInfo);
+      }
 
       throw new Error(errorMessage);
     }

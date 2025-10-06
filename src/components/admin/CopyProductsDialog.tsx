@@ -160,56 +160,88 @@ export function CopyProductsDialog({
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setCopying(true);
-      
+
       console.log('🚀 Starting copy operation:', {
         sourceUserId: values.sourceUserId.substring(0, 8),
         targetUserId: values.targetUserId.substring(0, 8)
       });
 
-      // Use admin API (requires JWT)
-      const result = await copyProductsAdmin(
-        values.sourceUserId,
-        values.targetUserId
+      // Show progress toast for long operations
+      const progressToast = toast.loading(
+        'Copiando dados... Esta operação pode levar alguns minutos para muitos produtos.',
+        { duration: Infinity }
       );
 
-      console.log('✅ Copy operation completed:', result);
+      try {
+        // Use admin API (requires JWT)
+        const result = await copyProductsAdmin(
+          values.sourceUserId,
+          values.targetUserId
+        );
 
-      const messages = [];
-      if (result.categoriesCloned > 0) {
-        messages.push(`${result.categoriesCloned} categoria(s)`);
-      }
-      if (result.productsCloned > 0) {
-        messages.push(`${result.productsCloned} produto(s)`);
-      }
-      if (result.imagesCloned > 0) {
-        messages.push(`${result.imagesCloned} imagem(ns)`);
-      }
+        console.log('✅ Copy operation completed:', result);
 
-      toast.success(`Cópia concluída com sucesso! Copiado: ${messages.join(', ')}`);
+        // Dismiss progress toast
+        toast.dismiss(progressToast);
 
-      onOpenChange(false);
-      form.reset();
+        const messages = [];
+        if (result.categoriesCloned > 0) {
+          messages.push(`${result.categoriesCloned} categoria(s)`);
+        }
+        if (result.productsCloned > 0) {
+          messages.push(`${result.productsCloned} produto(s)`);
+        }
+        if (result.imagesCloned > 0) {
+          messages.push(`${result.imagesCloned} imagem(ns)`);
+        }
+
+        toast.success(`Cópia concluída com sucesso! Copiado: ${messages.join(', ')}`, {
+          duration: 8000
+        });
+
+        onOpenChange(false);
+        form.reset();
+      } catch (innerError) {
+        toast.dismiss(progressToast);
+        throw innerError;
+      }
     } catch (error: any) {
       console.error('❌ Error copying data:', error);
-      
+      console.error('❌ Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.substring(0, 200)
+      });
+
       // Enhanced error handling with specific messages
       let userFriendlyMessage = 'Erro ao copiar dados';
-      
-      if (error.message?.includes('Timeout')) {
-        userFriendlyMessage = 'A operação demorou muito para ser concluída. Tente novamente com menos produtos.';
-      } else if (error.message?.includes('conectar')) {
-        userFriendlyMessage = 'Problema de conexão. Verifique sua internet e tente novamente.';
-      } else if (error.message?.includes('sessão') || error.message?.includes('autenticado')) {
-        userFriendlyMessage = 'Sua sessão expirou. Faça login novamente.';
-      } else if (error.message?.includes('limit')) {
-        userFriendlyMessage = 'Limite de produtos excedido. Verifique o limite do usuário de destino.';
-      } else if (error.message?.includes('não encontrado')) {
-        userFriendlyMessage = 'Um dos usuários não foi encontrado. Verifique se ambos existem.';
+      let errorDetails = '';
+
+      if (error.message?.includes('Timeout') || error.message?.includes('10 minutos')) {
+        userFriendlyMessage = 'A operação excedeu o tempo limite de 10 minutos. Recomendações:';
+        errorDetails = '\n• Tente copiar de um usuário com menos produtos\n• Copie em lotes menores\n• Verifique a conectividade com a internet';
+      } else if (error.message?.includes('conectar') || error.message?.includes('Failed to send')) {
+        userFriendlyMessage = 'Problema de conexão com o servidor';
+        errorDetails = '\n• Verifique sua conexão com a internet\n• Verifique se a Edge Function está deployada\n• Tente novamente em alguns minutos';
+      } else if (error.message?.includes('sessão') || error.message?.includes('autenticado') || error.message?.includes('Unauthorized')) {
+        userFriendlyMessage = 'Sessão expirada ou sem permissão';
+        errorDetails = '\n• Faça login novamente\n• Verifique se você tem permissões de admin';
+      } else if (error.message?.includes('limit') || error.message?.includes('exceed')) {
+        userFriendlyMessage = 'Limite de produtos excedido';
+        errorDetails = '\n• Verifique o limite do usuário de destino\n• Considere aumentar o limite antes de copiar';
+      } else if (error.message?.includes('não encontrado') || error.message?.includes('not found')) {
+        userFriendlyMessage = 'Usuário não encontrado';
+        errorDetails = '\n• Verifique se ambos os usuários existem\n• Recarregue a página e tente novamente';
+      } else if (error.message?.includes('Status:')) {
+        userFriendlyMessage = `Erro no servidor: ${error.message}`;
       } else {
         userFriendlyMessage = error.message || 'Erro inesperado ao copiar dados';
+        errorDetails = '\n• Verifique o console para mais detalhes\n• Entre em contato com o suporte se o problema persistir';
       }
-      
-      toast.error(userFriendlyMessage);
+
+      toast.error(userFriendlyMessage + errorDetails, {
+        duration: 10000
+      });
     } finally {
       setCopying(false);
     }

@@ -378,7 +378,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // Process products in smaller batches to avoid timeout
-        const BATCH_SIZE = 5; // Process 5 products at a time
+        const BATCH_SIZE = 3; // Process 3 products at a time (reduced from 5)
         const batches = [];
         for (let i = 0; i < sourceProducts.length; i += BATCH_SIZE) {
           batches.push(sourceProducts.slice(i, i + BATCH_SIZE));
@@ -448,7 +448,7 @@ Deno.serve(async (req: Request) => {
                 let newFeaturedImageUrl = null;
 
                 // Process images in parallel with concurrency limit
-                const IMAGE_CONCURRENCY = 3;
+                const IMAGE_CONCURRENCY = 2; // Reduced from 3 to avoid overwhelming
                 const imagePromises = [];
                 
                 for (let i = 0; i < productImages.length; i += IMAGE_CONCURRENCY) {
@@ -459,16 +459,29 @@ Deno.serve(async (req: Request) => {
                     try {
                       console.log(`🖼️ Processing image ${imageIndex + 1}/${productImages.length}`);
                       
-                      // Add timeout for image fetch
+                      // Add timeout and retry for image fetch
                       const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-                      
-                      const imageResponse = await fetch(image.url, { 
-                        signal: controller.signal,
-                        headers: {
-                          'User-Agent': 'VitrineTurbo-Clone-Function/1.0'
+                      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout (increased)
+
+                      let imageResponse;
+                      let retries = 3;
+                      while (retries > 0) {
+                        try {
+                          imageResponse = await fetch(image.url, {
+                            signal: controller.signal,
+                            headers: {
+                              'User-Agent': 'VitrineTurbo-Clone-Function/1.0'
+                            }
+                          });
+                          if (imageResponse.ok) break;
+                          retries--;
+                          if (retries > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+                        } catch (fetchError) {
+                          retries--;
+                          if (retries === 0) throw fetchError;
+                          await new Promise(resolve => setTimeout(resolve, 1000));
                         }
-                      });
+                      }
                       clearTimeout(timeoutId);
 
                       if (!imageResponse.ok) {
@@ -582,7 +595,7 @@ Deno.serve(async (req: Request) => {
           // Add small delay between batches to prevent overwhelming the system
           if (batchIndex < batches.length - 1) {
             console.log('⏸️ Pausing between batches...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2s
           }
         }
       } else {
