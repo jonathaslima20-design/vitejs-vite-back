@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Zap, Info } from 'lucide-react';
+import { Loader as Loader2, Zap, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { quickCloneProducts, type CloneProgress } from '@/lib/cloneApi';

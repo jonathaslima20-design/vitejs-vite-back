@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Copy, AlertTriangle, CheckCircle, Info, Zap, Image } from 'lucide-react';
+import { Loader as Loader2, Copy, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Info, Zap, Image } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { cloneUserDataAdmin, validateCloneOperation, quickCloneProducts, fullCloneProducts, type CloneOptions, type CloneProgress } from '@/lib/cloneApi';
