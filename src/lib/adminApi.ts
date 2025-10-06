@@ -240,6 +240,9 @@ export async function cloneUserCategoriesAndProductsAdmin(
         cloneProducts: options.cloneProducts,
         mergeStrategy: options.mergeStrategy,
       },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
     });
 
     console.log('Edge function response:', { data, error });
