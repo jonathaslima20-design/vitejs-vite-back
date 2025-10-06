@@ -57,6 +57,7 @@ import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 import type { SubscriptionPlan, Subscription } from '@/types';
 import { CloneCategoriesProductsDialog } from '@/components/admin/CloneCategoriesProductsDialog';
 import { CopyProductsDialog } from '@/components/admin/CopyProductsDialog';
+import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
 
 const planFormSchema = z.object({
   plan_id: z.string().min(1, 'Selecione um plano'),
@@ -117,6 +118,7 @@ export default function UserDetailPage() {
   const [cloning, setCloning] = useState(false);
   const [showCloneCategoriesProductsDialog, setShowCloneCategoriesProductsDialog] = useState(false);
   const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
+  const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
 
   const planForm = useForm<z.infer<typeof planFormSchema>>({
     resolver: zodResolver(planFormSchema),
@@ -452,6 +454,14 @@ export default function UserDetailPage() {
         {/* Clone User Buttons - Only for admins */}
         {currentUser?.role === 'admin' && (
           <>
+            <Button
+              variant="default"
+              onClick={() => setShowSimpleCopyDialog(true)}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Cópia Simples
+            </Button>
+
             <Button
               variant="outline"
               onClick={() => setShowCopyProductsDialog(true)}
@@ -899,6 +909,19 @@ export default function UserDetailPage() {
         open={showCloneCategoriesProductsDialog}
         onOpenChange={(open) => {
           setShowCloneCategoriesProductsDialog(open);
+          if (!open) {
+            // Refresh user data after closing
+            fetchUserDetail();
+          }
+        }}
+        defaultTargetUserId={userDetail?.id}
+      />
+
+      {/* Simple Copy Products Dialog */}
+      <SimpleCopyProductsDialog
+        open={showSimpleCopyDialog}
+        onOpenChange={(open) => {
+          setShowSimpleCopyDialog(open);
           if (!open) {
             // Refresh user data after closing
             fetchUserDetail();

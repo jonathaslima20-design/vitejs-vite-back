@@ -12,6 +12,7 @@ import { UserFilters } from '@/components/admin/UserFilters';
 import { UserTable } from '@/components/admin/UserTable';
 import { UserBulkActionsPanel } from '@/components/admin/UserBulkActionsPanel';
 import { UserSummaryCards } from '@/components/admin/UserSummaryCards';
+import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
 
 export default function UsersManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -23,8 +24,26 @@ export default function UsersManagementPage() {
   const [blockedFilter, setBlockedFilter] = useState('todos');
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
   const { user: currentUser } = useAuth();
   const { plans: subscriptionPlans } = useSubscriptionPlans();
+
+  // Listener para abrir dialog de cópia simples
+  useEffect(() => {
+    const handleOpenSimpleCopy = (event: CustomEvent) => {
+      const { targetUserId } = event.detail;
+      if (targetUserId) {
+        // Set the target user and open dialog
+        setShowSimpleCopyDialog(true);
+        // You might want to pass the targetUserId to the dialog
+      }
+    };
+
+    window.addEventListener('openSimpleCopy', handleOpenSimpleCopy as EventListener);
+    return () => {
+      window.removeEventListener('openSimpleCopy', handleOpenSimpleCopy as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -387,6 +406,12 @@ export default function UsersManagementPage() {
         onDeleteUser={handleDeleteUser}
         loading={loading}
         currentUserRole={currentUser?.role || ''}
+      />
+
+      {/* Simple Copy Products Dialog */}
+      <SimpleCopyProductsDialog
+        open={showSimpleCopyDialog}
+        onOpenChange={setShowSimpleCopyDialog}
       />
     </div>
   );

@@ -640,6 +640,16 @@ export function UserTable({
                         {/* Admin-only actions */}
                         {currentUserRole === 'admin' && (
                           <>
+                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openSimpleCopy', { detail: { targetUserId: user.id } }))}>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Cópia Simples
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent('openSimpleCopy', { detail: { targetUserId: user.id } }))}>
+                              <Zap className="h-4 w-4 mr-2" />
+                              Cópia Simples
+                            </DropdownMenuItem>
+
                             <DropdownMenuItem onClick={() => openPasswordDialog(user.id)}>
                               <Key className="h-4 w-4 mr-2" />
                               Alterar Senha
