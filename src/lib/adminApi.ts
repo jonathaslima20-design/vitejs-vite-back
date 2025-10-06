@@ -293,6 +293,18 @@ export async function cloneUserCategoriesAndProductsAdmin(
       let errorMessage = 'Erro ao clonar dados';
       let detailedInfo = '';
 
+      // Check for timeout-related errors first
+      if (error.message?.includes('Unexpected end of JSON input') || 
+          error.message?.includes('Internal server error: Unexpected end of JSON input')) {
+        errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
+                     '1. Acesse o Supabase Dashboard\n' +
+                     '2. Vá em "Edge Functions"\n' +
+                     '3. Selecione a função "clone-categories-products"\n' +
+                     '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
+                     'Alternativamente, tente clonar menos produtos por vez.';
+        throw new Error(errorMessage);
+      }
+
       // Enhanced error parsing with more debug info
       if (error.message?.includes('Failed to send a request')) {
         errorMessage = 'Não foi possível conectar à função. Verifique se a função edge está deployada corretamente.';
@@ -304,11 +316,33 @@ export async function cloneUserCategoriesAndProductsAdmin(
             const errorBody = typeof error.context.body === 'string'
               ? JSON.parse(error.context.body)
               : error.context.body;
+            
+            // Check if the parsed body indicates a timeout
+            if (errorBody.error?.message?.includes('Unexpected end of JSON input')) {
+              errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
+                           '1. Acesse o Supabase Dashboard\n' +
+                           '2. Vá em "Edge Functions"\n' +
+                           '3. Selecione a função "clone-categories-products"\n' +
+                           '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
+                           'Alternativamente, tente clonar menos produtos por vez.';
+              throw new Error(errorMessage);
+            }
+            
             errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
             detailedInfo = `Status: ${error.status || 'unknown'}`;
           } catch (parseError) {
             console.warn('Failed to parse error body:', parseError);
-            errorMessage = error.message || errorMessage;
+            // Check if the original error message indicates timeout
+            if (error.message?.includes('Unexpected end of JSON input')) {
+              errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
+                           '1. Acesse o Supabase Dashboard\n' +
+                           '2. Vá em "Edge Functions"\n' +
+                           '3. Selecione a função "clone-categories-products"\n' +
+                           '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
+                           'Alternativamente, tente clonar menos produtos por vez.';
+            } else {
+              errorMessage = error.message || errorMessage;
+            }
             detailedInfo = `Parse error: ${parseError.message}`;
           }
         } else {
@@ -322,6 +356,18 @@ export async function cloneUserCategoriesAndProductsAdmin(
           const errorBody = typeof error.context.body === 'string'
             ? JSON.parse(error.context.body)
             : error.context.body;
+          
+          // Check for timeout in context body
+          if (errorBody.error?.message?.includes('Unexpected end of JSON input')) {
+            errorMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
+                         '1. Acesse o Supabase Dashboard\n' +
+                         '2. Vá em "Edge Functions"\n' +
+                         '3. Selecione a função "clone-categories-products"\n' +
+                         '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
+                         'Alternativamente, tente clonar menos produtos por vez.';
+            throw new Error(errorMessage);
+          }
+          
           errorMessage = errorBody.error?.message || errorBody.message || errorMessage;
         } catch (parseError) {
           console.warn('Failed to parse error context:', parseError);
@@ -341,6 +387,18 @@ export async function cloneUserCategoriesAndProductsAdmin(
 
     if (data?.error) {
       console.error('❌ Edge function returned error:', data.error);
+      
+      // Check for timeout in data error
+      if (data.error.message?.includes('Unexpected end of JSON input')) {
+        const timeoutMessage = 'A operação foi interrompida por timeout. Para resolver este problema:\n\n' +
+                              '1. Acesse o Supabase Dashboard\n' +
+                              '2. Vá em "Edge Functions"\n' +
+                              '3. Selecione a função "clone-categories-products"\n' +
+                              '4. Aumente o timeout para 300 segundos (5 minutos) ou mais\n\n' +
+                              'Alternativamente, tente clonar menos produtos por vez.';
+        throw new Error(timeoutMessage);
+      }
+      
       throw new Error(data.error.message || 'Erro ao clonar dados');
     }
 
