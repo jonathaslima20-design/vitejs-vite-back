@@ -459,7 +459,7 @@ export default function UserDetailPage() {
               onClick={() => setShowSimpleCopyDialog(true)}
             >
               <Copy className="h-4 w-4 mr-2" />
-              Cópia Simples
+              Cópia Simples (Sem Limites)
             </Button>
 
             <Button
