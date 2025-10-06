@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Copy, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
+import { Loader as Loader2, Copy, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { simpleCopyProducts, simpleCopyProductsOnly } from '@/lib/simpleCopyProducts';
 import { toast } from 'sonner';

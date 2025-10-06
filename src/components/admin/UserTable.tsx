@@ -1,25 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  MoreHorizontal, 
-  Edit, 
-  Ban, 
-  CheckCircle, 
-  Trash2, 
-  MessageCircle,
-  Phone,
-  Instagram,
-  MapPin,
-  ExternalLink,
-  Shield,
-  Users,
-  User as UserIcon,
-  Key,
-  Copy,
-  Eye,
-  EyeOff,
-  Loader2
-} from 'lucide-react';
+import { MoveHorizontal as MoreHorizontal, CreditCard as Edit, Ban, CircleCheck as CheckCircle, Trash2, MessageCircle, Phone, Instagram, MapPin, ExternalLink, Shield, Users, User as UserIcon, Key, Copy, Eye, EyeOff, Loader as Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
