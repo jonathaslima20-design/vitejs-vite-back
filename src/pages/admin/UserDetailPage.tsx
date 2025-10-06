@@ -163,6 +163,13 @@ export default function UserDetailPage() {
 
   const fetchUserSubscription = async () => {
     try {
+      if (!userId) {
+        console.warn('No userId provided for subscription fetch');
+        return;
+      }
+
+      console.log('Fetching subscription for user:', userId);
+      
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
@@ -170,12 +177,15 @@ export default function UserDetailPage() {
         .order('created_at', { ascending: false })
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching subscription:', error);
+        throw error;
+      }
       
       setSubscription(data);
       
       if (data) {
-        // Find the corresponding plan
+        // Find the corresponding plan - wait for plans to be loaded
         const plan = plans.find(p => p.name === data.plan_name);
         planForm.reset({
           plan_id: plan?.id || '',
@@ -185,6 +195,12 @@ export default function UserDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching user subscription:', error);
+      // Don't show toast error for network issues during initial load
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.warn('Network connectivity issue when fetching subscription data');
+      } else {
+        toast.error('Erro ao carregar dados da assinatura');
+      }
     }
   };
 
