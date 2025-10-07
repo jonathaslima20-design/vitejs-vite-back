@@ -165,7 +165,24 @@ export function getCorretorMetaTags(corretor: any, language: SupportedLanguage =
 export function getProductMetaTags(product: any, corretor: any, language: SupportedLanguage = 'pt-BR'): MetaTagsConfig {
   // Use getPageTitle for consistency with browser title bar
   const title = getPageTitle(language, corretor.name, product.title);
-  const description = product.short_description || product.description?.substring(0, 160) || `${product.title} - Confira este produto na vitrine de ${corretor.name}`;
+  
+  // Create description from product info
+  let description = product.short_description || '';
+  if (!description && product.description) {
+    // Extract first 160 characters from description, removing HTML tags
+    description = product.description.replace(/<[^>]*>/g, '').substring(0, 160);
+  }
+  if (!description) {
+    description = `${product.title} - Confira este produto na vitrine de ${corretor.name}`;
+  }
+  
+  // Add price information to description if available
+  if (product.price) {
+    const price = product.discounted_price || product.price;
+    const priceText = product.is_starting_price ? `A partir de R$ ${price.toFixed(2)}` : `R$ ${price.toFixed(2)}`;
+    description = `${description} - ${priceText}`;
+  }
+  
   // For products, prioritize the product image, but fallback to corretor's avatar (logo)
   const image = product.featured_image_url || corretor.avatar_url || 'https://ikvwygqmlqhsyqmpgaoz.supabase.co/storage/v1/object/public/public/logos/flat-icon-vitrine.png.png';
   const url = `${window.location.origin}/${corretor.slug}/produtos/${product.id}`;

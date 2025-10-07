@@ -60,8 +60,8 @@ A solução implementa **Server-Side Meta Tags Generation** através de duas abo
 **Responsabilidades:**
 - Interceptar requisições de crawlers antes de servir o HTML estático
 - Detectar User-Agents de bots de redes sociais
-- Consultar dados do corretor no Supabase
-- Gerar HTML com Open Graph e Twitter Cards dinâmicos
+- Consultar dados do corretor e produtos no Supabase
+- Gerar HTML com Open Graph e Twitter Cards dinâmicos para perfis e produtos
 - Permitir passagem de usuários normais para a SPA
 
 **Crawlers Detectados:**
@@ -74,8 +74,13 @@ A solução implementa **Server-Side Meta Tags Generation** através de duas abo
 - Slack (Slackbot)
 - E outros...
 
+**URLs Suportadas:**
+- Páginas de perfil: `https://vitrineturbo.com/kingstore`
+- Páginas de produto: `https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034`
+
 **Exemplo de HTML Gerado:**
 
+Para páginas de perfil:
 ```html
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -101,14 +106,46 @@ A solução implementa **Server-Side Meta Tags Generation** através de duas abo
 </html>
 ```
 
+Para páginas de produto:
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <title>Tênis Nike Air Max - King Store | VitrineTurbo</title>
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="product" />
+    <meta property="og:url" content="https://vitrineturbo.com/kingstore/produtos/c26295b1..." />
+    <meta property="og:title" content="Tênis Nike Air Max - King Store | VitrineTurbo" />
+    <meta property="og:description" content="Tênis esportivo de alta qualidade - R$ 299,90" />
+    <meta property="og:image" content="https://[product-image-url]" />
+    
+    <!-- Product specific meta tags -->
+    <meta property="product:brand" content="King Store" />
+    <meta property="product:price:amount" content="299.90" />
+    <meta property="product:price:currency" content="BRL" />
+    <meta property="product:availability" content="in stock" />
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tênis Nike Air Max - King Store | VitrineTurbo" />
+    <meta name="twitter:description" content="Tênis esportivo de alta qualidade - R$ 299,90" />
+    <meta name="twitter:image" content="https://[product-image-url]" />
+  </head>
+  <body>...</body>
+</html>
+```
+
 #### 2. Supabase Edge Function (`supabase/functions/meta-tags-handler/`)
 
-Funcionalidade similar à Netlify Edge Function, mas pode ser usada como:
+Funcionalidade similar à Netlify Edge Function com suporte para produtos, mas pode ser usada como:
 - Alternativa se não estiver usando Netlify
 - Backup em caso de problemas
 - API endpoint direto para testar meta tags
 
-**Endpoint:** `https://[project].supabase.co/functions/v1/meta-tags-handler?url=https://vitrineturbo.com/kingstore`
+**Endpoints:** 
+- Perfil: `https://[project].supabase.co/functions/v1/meta-tags-handler?url=https://vitrineturbo.com/kingstore`
+- Produto: `https://[project].supabase.co/functions/v1/meta-tags-handler?url=https://vitrineturbo.com/kingstore/produtos/c26295b1...`
 
 #### 3. Configuração Netlify (`netlify.toml`)
 
@@ -122,24 +159,47 @@ Esta configuração garante que todas as requisições passem pela edge function
 
 ### Priorização de Imagens
 
-A lógica implementada prioriza imagens na seguinte ordem:
+A lógica implementada prioriza imagens de acordo com o tipo de página:
 
-**Para páginas de loja/corretor:**
+**Para páginas de perfil/loja:**
 1. `avatar_url` (logo/foto do corretor) - **PRIORIDADE MÁXIMA**
 2. `cover_url_desktop` (banner desktop)
 3. `cover_url_mobile` (banner mobile)
 4. Imagem padrão do VitrineTurbo
 
-**Justificativa:** O avatar representa a marca/identidade do corretor e é mais adequado para prévias de redes sociais.
+**Para páginas de produto:**
+1. `featured_image_url` (imagem principal do produto) - **PRIORIDADE MÁXIMA**
+2. `avatar_url` (logo/foto do corretor)
+3. `cover_url_desktop` (banner desktop)
+4. `cover_url_mobile` (banner mobile)
+5. Imagem padrão do VitrineTurbo
+
+**Justificativa:** Para produtos, a imagem do produto é mais relevante para prévias de redes sociais, mas mantém o avatar do corretor como fallback para manter a identidade da marca.
 
 ### Dados Consultados do Banco
 
-A solução consulta a tabela `users` com os seguintes campos:
+A solução consulta diferentes tabelas dependendo do tipo de página:
 
+**Para páginas de perfil:**
 ```sql
 SELECT name, slug, bio, avatar_url, cover_url_desktop, cover_url_mobile
 FROM users
 WHERE slug = 'kingstore'
+LIMIT 1
+```
+
+**Para páginas de produto:**
+```sql
+-- Primeiro busca o produto
+SELECT id, title, description, short_description, featured_image_url, price, discounted_price, is_starting_price, user_id
+FROM products
+WHERE id = 'c26295b1-8717-46fa-b8e6-fdb52e97f034'
+LIMIT 1
+
+-- Depois busca o perfil do vendedor
+SELECT name, slug, bio, avatar_url, cover_url_desktop, cover_url_mobile
+FROM users
+WHERE id = '[user_id_do_produto]'
 LIMIT 1
 ```
 
@@ -214,7 +274,8 @@ netlify deploy --prod
 
 Após o deploy:
 
-1. Acesse: `https://vitrineturbo.com/kingstore`
+1. Teste perfil: `https://vitrineturbo.com/kingstore`
+2. Teste produto: `https://vitrineturbo.com/kingstore/produtos/[product-id]`
 2. Abra as DevTools > Network
 3. Verifique que a página carrega normalmente
 4. Teste com curl simulando um crawler (ver seção de testes abaixo)
@@ -223,10 +284,16 @@ Após o deploy:
 
 ### 1. Teste Local com cURL
 
-Simule um crawler do Facebook:
+Simule um crawler do Facebook para perfil:
 
 ```bash
 curl -A "facebookexternalhit/1.1" https://vitrineturbo.com/kingstore
+```
+
+Simule um crawler do Facebook para produto:
+
+```bash
+curl -A "facebookexternalhit/1.1" https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034
 ```
 
 Resposta esperada: HTML com meta tags dinâmicas
@@ -235,12 +302,14 @@ Resposta esperada: HTML com meta tags dinâmicas
 
 ```bash
 curl -A "WhatsApp/2.0" https://vitrineturbo.com/kingstore
+curl -A "WhatsApp/2.0" https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034
 ```
 
 ### 3. Teste com Navegador Normal
 
 ```bash
 curl -A "Mozilla/5.0" https://vitrineturbo.com/kingstore
+curl -A "Mozilla/5.0" https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034
 ```
 
 Resposta esperada: Deve passar pela edge function e carregar a SPA normalmente
@@ -253,12 +322,12 @@ Resposta esperada: Deve passar pela edge function e carregar a SPA normalmente
 
 **Passos:**
 1. Acesse o Facebook Sharing Debugger
-2. Cole a URL: `https://vitrineturbo.com/kingstore`
+2. Cole a URL do perfil: `https://vitrineturbo.com/kingstore`
+3. Cole a URL do produto: `https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034`
 3. Clique em "Debug" ou "Scrape Again"
 4. Verifique as informações exibidas:
-   - Título correto
-   - Descrição correta
-   - Imagem do avatar
+   - **Para perfil:** Título com nome do vendedor, descrição da bio, imagem do avatar
+   - **Para produto:** Título com nome do produto, descrição com detalhes do produto, imagem do produto
 
 **Importante:** Primeira vez pode mostrar cache antigo. Clique em "Scrape Again" para forçar atualização.
 
@@ -268,7 +337,7 @@ Resposta esperada: Deve passar pela edge function e carregar a SPA normalmente
 
 **Passos:**
 1. Acesse o Twitter Card Validator
-2. Cole a URL: `https://vitrineturbo.com/kingstore`
+2. Cole a URL (perfil ou produto)
 3. Clique em "Preview card"
 4. Verifique preview gerado
 
@@ -280,7 +349,7 @@ Resposta esperada: Deve passar pela edge function e carregar a SPA normalmente
 
 **Passos:**
 1. Acesse o LinkedIn Post Inspector
-2. Cole a URL: `https://vitrineturbo.com/kingstore`
+2. Cole a URL (perfil ou produto)
 3. Clique em "Inspect"
 4. Verifique preview
 
@@ -289,9 +358,15 @@ Resposta esperada: Deve passar pela edge function e carregar a SPA normalmente
 WhatsApp não tem validador público, então teste enviando a URL:
 
 1. Abra WhatsApp Web ou app
-2. Envie a URL para você mesmo: `https://vitrineturbo.com/kingstore`
+2. Envie a URL para você mesmo (perfil ou produto)
 3. Aguarde 5-10 segundos
 4. Verifique se a prévia aparece com dados corretos
+
+**Para produtos, verifique se mostra:**
+- Imagem do produto (não do vendedor)
+- Nome do produto no título
+- Preço na descrição
+- Nome do vendedor como informação adicional
 
 **Dica:** Se não aparecer, pode haver cache. Tente:
 - Adicionar `?t=123` no final da URL para forçar nova consulta
@@ -301,52 +376,41 @@ WhatsApp não tem validador público, então teste enviando a URL:
 
 ```bash
 # Substitua pela URL do seu projeto Supabase
+# Teste perfil
 curl "https://[seu-projeto].supabase.co/functions/v1/meta-tags-handler?url=https://vitrineturbo.com/kingstore" \
+  -H "Authorization: Bearer [ANON_KEY]" \
+  -A "WhatsApp/2.0"
+
+# Teste produto
+curl "https://[seu-projeto].supabase.co/functions/v1/meta-tags-handler?url=https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034" \
   -H "Authorization: Bearer [ANON_KEY]" \
   -A "WhatsApp/2.0"
 ```
 
 ### 6. Script de Teste Automatizado
 
-Crie um arquivo `test-meta-tags.sh`:
+O script `test-meta-tags.sh` foi atualizado para suportar produtos:
 
 ```bash
-#!/bin/bash
+# Teste perfil
+./test-meta-tags.sh https://vitrineturbo.com/kingstore
 
-URL="https://vitrineturbo.com/kingstore"
-
-echo "==================================="
-echo "Testando Meta Tags para: $URL"
-echo "==================================="
-
-echo ""
-echo "1. Teste com Facebook Bot:"
-curl -s -A "facebookexternalhit/1.1" "$URL" | grep -E 'og:title|og:image|og:description' | head -5
-
-echo ""
-echo "2. Teste com WhatsApp:"
-curl -s -A "WhatsApp/2.0" "$URL" | grep -E 'og:title|og:image|og:description' | head -5
-
-echo ""
-echo "3. Teste com Twitter Bot:"
-curl -s -A "Twitterbot/1.0" "$URL" | grep -E 'twitter:title|twitter:image|twitter:description' | head -5
-
-echo ""
-echo "4. Teste com navegador normal (não deve retornar meta tags customizadas):"
-curl -s -A "Mozilla/5.0" "$URL" -I | grep -E 'HTTP|Content-Type'
-
-echo ""
-echo "==================================="
-echo "Testes concluídos!"
-echo "==================================="
+# Teste produto
+./test-meta-tags.sh https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034
 ```
 
-Execute:
+O script agora detecta automaticamente se é uma página de produto e executa verificações específicas.
 
-```bash
-chmod +x test-meta-tags.sh
-./test-meta-tags.sh
-```
+### 7. Diferenças entre Perfil e Produto
+
+| Aspecto | Página de Perfil | Página de Produto |
+|---------|------------------|-------------------|
+| **og:type** | `profile` | `product` |
+| **og:title** | `Nome do Vendedor - VitrineTurbo` | `Nome do Produto - Nome do Vendedor \| VitrineTurbo` |
+| **og:description** | Bio do vendedor | Descrição do produto + preço |
+| **og:image** | Avatar do vendedor | Imagem do produto (fallback: avatar) |
+| **Meta tags extras** | Nenhuma | `product:brand`, `product:price:*`, `product:availability` |
+| **Favicon** | Avatar do vendedor | Imagem do produto (fallback: avatar) |
 
 ## Troubleshooting
 
@@ -365,10 +429,11 @@ chmod +x test-meta-tags.sh
    - Verifique no Netlify Dashboard > Site Settings > Environment Variables
    - Confirme que `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` estão configuradas
 
-4. **Slug não existe no banco**
+4. **Slug ou produto não existe no banco**
    - Teste query direta no Supabase:
    ```sql
    SELECT name, slug, avatar_url FROM users WHERE slug = 'kingstore';
+   SELECT title, featured_image_url FROM products WHERE id = 'c26295b1-8717-46fa-b8e6-fdb52e97f034';
    ```
 
 ### Problema: Edge function retorna erro 500
@@ -385,17 +450,23 @@ netlify logs:function meta-handler
 netlify dev
 # Em outro terminal:
 curl -A "WhatsApp/2.0" http://localhost:8888/kingstore
+curl -A "WhatsApp/2.0" http://localhost:8888/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034
 ```
 
-3. Verifique se dados do usuário existem no banco
+3. Verifique se dados do usuário e produto existem no banco
 
 ### Problema: Imagem não aparece na prévia
 
 **Checklist:**
 
-1. Verifique se `avatar_url` está salvo no banco:
+1. **Para perfis:** Verifique se `avatar_url` está salvo no banco:
 ```sql
 SELECT avatar_url FROM users WHERE slug = 'kingstore';
+```
+
+2. **Para produtos:** Verifique se `featured_image_url` está salvo no banco:
+```sql
+SELECT featured_image_url FROM products WHERE id = 'c26295b1-8717-46fa-b8e6-fdb52e97f034';
 ```
 
 2. Teste se URL da imagem é acessível:
@@ -418,6 +489,7 @@ curl -I [URL_DA_IMAGEM]
 1. Adicionar parâmetro único na URL:
 ```
 https://vitrineturbo.com/kingstore?v=2
+https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034?v=2
 ```
 
 2. Aguardar 24h para cache expirar naturalmente
@@ -453,6 +525,7 @@ Monitore:
 - **Tempo de resposta:** Deve ser < 500ms
 - **Taxa de erro:** Idealmente 0%
 - **Cache hit rate:** Idealmente > 80%
+- **Distribuição perfil vs produto:** Quantos requests são para cada tipo
 
 ## Manutenção Futura
 
@@ -475,36 +548,46 @@ function isCrawlerUserAgent(userAgent: string): boolean {
 Edite os valores padrão:
 
 ```typescript
+// Para perfis
 const imageUrl = profile.avatar_url ||
                  profile.cover_url_desktop ||
                  'https://[NOVA_URL_PADRAO]';
+
+// Para produtos
+const imageUrl = product.featured_image_url ||
+                 profile.avatar_url ||
+                 'https://[NOVA_URL_PADRAO]';
 ```
 
-### Adicionar Suporte para Páginas de Produto
+### Adicionar Suporte para Outros Tipos de Página
 
-A estrutura atual suporta páginas de loja. Para produtos:
+A estrutura atual suporta perfis e produtos. Para outros tipos:
 
-1. Detecte padrão de URL: `/:slug/produtos/:productId`
-2. Consulte tabela `products`
-3. Use `product.featured_image_url` como imagem
-4. Gere meta tags específicas do produto
+1. Detecte padrão de URL: `/:slug/categorias/:categoryName`
+2. Consulte dados relevantes
+3. Gere meta tags específicas
+4. Adicione ao switch de tipos de página
 
 ## Checklist de Deploy
 
 - [ ] Edge function criada em `netlify/edge-functions/meta-handler.ts`
+- [ ] Suporte para produtos adicionado
 - [ ] Configuração adicionada em `netlify.toml`
 - [ ] Variáveis de ambiente configuradas no Netlify
 - [ ] Build e deploy realizados
 - [ ] Teste com curl simulando Facebook
 - [ ] Teste com curl simulando WhatsApp
+- [ ] Teste específico para URLs de produto
 - [ ] Validação no Facebook Sharing Debugger
 - [ ] Teste real no WhatsApp
+- [ ] Verificação de que produtos mostram imagem correta
 - [ ] Verificação de logs sem erros
 - [ ] Cache funcionando corretamente
 
 ## Referências
 
 - [Open Graph Protocol](https://ogp.me/)
+- [Open Graph Product Objects](https://ogp.me/#type_product)
 - [Twitter Cards Documentation](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/abouts-cards)
 - [Facebook Sharing Best Practices](https://developers.facebook.com/docs/sharing/webmasters)
 - [Netlify Edge Functions](https://docs.netlify.com/edge-functions/overview/)

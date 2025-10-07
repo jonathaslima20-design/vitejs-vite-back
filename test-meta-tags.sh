@@ -3,6 +3,7 @@
 # Script de teste para Meta Tags Dinâmicas - VitrineTurbo
 # Uso: ./test-meta-tags.sh [URL_DA_LOJA]
 # Exemplo: ./test-meta-tags.sh https://vitrineturbo.com/kingstore
+# Exemplo produto: ./test-meta-tags.sh https://vitrineturbo.com/kingstore/produtos/c26295b1-8717-46fa-b8e6-fdb52e97f034
 
 # Cores para output
 RED='\033[0;31m'
@@ -14,11 +15,19 @@ NC='\033[0m' # No Color
 # URL padrão se não fornecida
 URL="${1:-https://vitrineturbo.com/kingstore}"
 
+# Detectar se é URL de produto
+if [[ "$URL" == *"/produtos/"* ]]; then
+    PAGE_TYPE="produto"
+else
+    PAGE_TYPE="vitrine"
+fi
+
 echo -e "${BLUE}==================================="
 echo "Meta Tags Test Suite - VitrineTurbo"
 echo -e "===================================${NC}"
 echo ""
 echo -e "URL Testada: ${GREEN}$URL${NC}"
+echo -e "Tipo de Página: ${BLUE}$PAGE_TYPE${NC}"
 echo ""
 
 # Função para extrair meta tags
@@ -40,6 +49,30 @@ check_html() {
     fi
 }
 
+# Função para verificar tipo de página
+check_page_type() {
+    local response="$1"
+    local expected_type="$2"
+    
+    if [[ "$expected_type" == "produto" ]]; then
+        if echo "$response" | grep -q 'property="og:type" content="product"'; then
+            echo -e "${GREEN}✓${NC} Tipo correto: product"
+            return 0
+        else
+            echo -e "${RED}✗${NC} Tipo incorreto (esperado: product)"
+            return 1
+        fi
+    else
+        if echo "$response" | grep -q 'property="og:type" content="profile"'; then
+            echo -e "${GREEN}✓${NC} Tipo correto: profile"
+            return 0
+        else
+            echo -e "${RED}✗${NC} Tipo incorreto (esperado: profile)"
+            return 1
+        fi
+    fi
+}
+
 # Teste 1: Facebook Bot
 echo -e "${YELLOW}[Teste 1]${NC} Simulando Facebook Bot (facebookexternalhit)"
 echo "────────────────────────────────────────────────────"
@@ -49,13 +82,31 @@ if check_html "$RESPONSE_FB"; then
     TITLE=$(extract_meta_tag "$RESPONSE_FB" "og:title")
     IMAGE=$(extract_meta_tag "$RESPONSE_FB" "og:image")
     DESC=$(extract_meta_tag "$RESPONSE_FB" "og:description")
+    TYPE=$(extract_meta_tag "$RESPONSE_FB" "og:type")
 
     echo -e "  ${BLUE}og:title:${NC} $TITLE"
     echo -e "  ${BLUE}og:image:${NC} $IMAGE"
     echo -e "  ${BLUE}og:description:${NC} ${DESC:0:80}..."
+    echo -e "  ${BLUE}og:type:${NC} $TYPE"
+    
+    check_page_type "$RESPONSE_FB" "$PAGE_TYPE"
 
     if [[ -n "$TITLE" && -n "$IMAGE" ]]; then
         echo -e "  ${GREEN}✓ Meta tags encontradas${NC}"
+        
+        # Verificações específicas para produtos
+        if [[ "$PAGE_TYPE" == "produto" ]]; then
+            if [[ "$TITLE" == *"VitrineTurbo"* ]] && [[ "$TITLE" != *"kingstore"* ]]; then
+                echo -e "  ${GREEN}✓ Título contém nome do produto${NC}"
+            fi
+            
+            # Verificar se a imagem é diferente do avatar padrão
+            if [[ "$IMAGE" != *"flat-icon-vitrine"* ]]; then
+                echo -e "  ${GREEN}✓ Usando imagem específica do produto${NC}"
+            else
+                echo -e "  ${YELLOW}⚠ Usando imagem padrão (produto pode não ter imagem)${NC}"
+            fi
+        fi
     else
         echo -e "  ${RED}✗ Meta tags não encontradas${NC}"
     fi
@@ -72,9 +123,13 @@ RESPONSE_WA=$(curl -s -A "WhatsApp/2.0" "$URL")
 if check_html "$RESPONSE_WA"; then
     TITLE=$(extract_meta_tag "$RESPONSE_WA" "og:title")
     IMAGE=$(extract_meta_tag "$RESPONSE_WA" "og:image")
+    ALT_TEXT=$(extract_meta_tag "$RESPONSE_WA" "og:image:alt")
 
     echo -e "  ${BLUE}og:title:${NC} $TITLE"
     echo -e "  ${BLUE}og:image:${NC} $IMAGE"
+    echo -e "  ${BLUE}og:image:alt:${NC} $ALT_TEXT"
+    
+    check_page_type "$RESPONSE_WA" "$PAGE_TYPE"
 
     if [[ -n "$TITLE" && -n "$IMAGE" ]]; then
         echo -e "  ${GREEN}✓ Meta tags encontradas${NC}"
@@ -97,6 +152,8 @@ if check_html "$RESPONSE_TW"; then
 
     echo -e "  ${BLUE}twitter:title:${NC} $TITLE"
     echo -e "  ${BLUE}twitter:image:${NC} $IMAGE"
+    
+    check_page_type "$RESPONSE_TW" "$PAGE_TYPE"
 
     if [[ -n "$TITLE" && -n "$IMAGE" ]]; then
         echo -e "  ${GREEN}✓ Twitter cards encontradas${NC}"
@@ -107,6 +164,28 @@ else
     echo -e "  ${RED}✗ Teste falhou${NC}"
 fi
 echo ""
+
+# Teste específico para produtos
+if [[ "$PAGE_TYPE" == "produto" ]]; then
+    echo -e "${YELLOW}[Teste Extra]${NC} Verificações Específicas para Produto"
+    echo "────────────────────────────────────────────────────"
+    
+    # Verificar meta tags específicas de produto
+    PRODUCT_BRAND=$(extract_meta_tag "$RESPONSE_FB" "product:brand")
+    PRODUCT_PRICE=$(extract_meta_tag "$RESPONSE_FB" "product:price:amount")
+    PRODUCT_CURRENCY=$(extract_meta_tag "$RESPONSE_FB" "product:price:currency")
+    
+    echo -e "  ${BLUE}product:brand:${NC} $PRODUCT_BRAND"
+    echo -e "  ${BLUE}product:price:amount:${NC} $PRODUCT_PRICE"
+    echo -e "  ${BLUE}product:price:currency:${NC} $PRODUCT_CURRENCY"
+    
+    if [[ -n "$PRODUCT_BRAND" ]]; then
+        echo -e "  ${GREEN}✓ Meta tags de produto encontradas${NC}"
+    else
+        echo -e "  ${YELLOW}⚠ Meta tags de produto não encontradas${NC}"
+    fi
+    echo ""
+fi
 
 # Teste 4: Navegador Normal (deve passar pela SPA)
 echo -e "${YELLOW}[Teste 4]${NC} Simulando Navegador Normal (Chrome)"
@@ -169,6 +248,13 @@ if [ -n "$IMAGE_URL" ]; then
 
     if [ "$IMAGE_STATUS" -eq 200 ]; then
         echo -e "  ${GREEN}✓ Imagem acessível${NC}"
+        
+        # Para produtos, verificar se não é a imagem padrão
+        if [[ "$PAGE_TYPE" == "produto" ]] && [[ "$IMAGE_URL" != *"flat-icon-vitrine"* ]]; then
+            echo -e "  ${GREEN}✓ Usando imagem específica do produto${NC}"
+        elif [[ "$PAGE_TYPE" == "produto" ]]; then
+            echo -e "  ${YELLOW}⚠ Produto usando imagem padrão${NC}"
+        fi
     else
         echo -e "  ${RED}✗ Imagem não acessível${NC}"
     fi
@@ -182,6 +268,17 @@ echo -e "${BLUE}==================================="
 echo "Resumo dos Testes"
 echo -e "===================================${NC}"
 echo ""
+
+if [[ "$PAGE_TYPE" == "produto" ]]; then
+    echo "✅ Funcionalidades Específicas para Produtos:"
+    echo "  • Meta tags og:type='product'"
+    echo "  • Título inclui nome do produto"
+    echo "  • Descrição inclui detalhes do produto"
+    echo "  • Imagem prioritiza foto do produto"
+    echo "  • Meta tags product:* para e-commerce"
+    echo ""
+fi
+
 echo "Próximos Passos:"
 echo "  1. Teste no Facebook Debugger:"
 echo -e "     ${GREEN}https://developers.facebook.com/tools/debug/${NC}"
@@ -192,6 +289,16 @@ echo ""
 echo "  3. Teste real no WhatsApp:"
 echo -e "     ${GREEN}Envie a URL para você mesmo no WhatsApp${NC}"
 echo ""
+
+if [[ "$PAGE_TYPE" == "produto" ]]; then
+    echo "  4. Teste específico para produtos:"
+    echo -e "     ${GREEN}Compartilhe o link do produto e verifique se mostra:${NC}"
+    echo "     • Imagem do produto (não do vendedor)"
+    echo "     • Nome do produto no título"
+    echo "     • Preço na descrição"
+    echo ""
+fi
+
 echo -e "${BLUE}==================================="
 echo "Testes Concluídos!"
 echo -e "===================================${NC}"
