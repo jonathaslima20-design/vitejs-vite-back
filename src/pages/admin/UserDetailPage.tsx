@@ -52,7 +52,7 @@ import { ptBR } from 'date-fns/locale';
 import { getInitials, formatPhone, formatCurrency, formatWhatsAppForDisplay } from '@/lib/utils';
 import { UserStats } from '@/components/admin/UserStats';
 import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
-import { cloneUserAdmin } from '@/lib/adminApi';
+import { cloneUserComplete } from '@/lib/adminApi';
 import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 import type { SubscriptionPlan, Subscription } from '@/types';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
