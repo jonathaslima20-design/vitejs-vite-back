@@ -129,6 +129,23 @@ export function useCorretorData({ slug }: UseCorretorDataProps): UseCorretorData
         document.documentElement.classList.add(corretorData.theme);
       }
 
+      // Load global Meta Pixel from site settings
+      try {
+        const { data: siteSettings, error: siteSettingsError } = await supabase
+          .from('site_settings')
+          .select('setting_value')
+          .eq('setting_name', 'global_meta_pixel_id')
+          .maybeSingle();
+
+        if (!siteSettingsError && siteSettings?.setting_value) {
+          console.log('Injecting global Meta Pixel:', siteSettings.setting_value);
+          injectMetaPixel(siteSettings.setting_value);
+        }
+      } catch (globalPixelError) {
+        console.warn('Error loading global Meta Pixel:', globalPixelError);
+        // Don't fail the page load for global pixel errors
+      }
+
       // Handle tracking settings result (non-blocking)
       if (trackingResult.status === 'fulfilled') {
         const trackingSettings = trackingResult.value;

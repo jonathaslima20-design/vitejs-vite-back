@@ -43,7 +43,11 @@ const formSchema = z.object({
     }),
   enable_user_registration: z.boolean(),
   default_user_role: z.enum(['corretor', 'parceiro']),
-  require_creci: z.boolean()
+  require_creci: z.boolean(),
+  global_meta_pixel_id: z.string()
+    .regex(/^\d*$/, 'O ID do Pixel deve conter apenas números')
+    .optional()
+    .or(z.literal(''))
 });
 
 export default function SettingsPage() {
@@ -56,7 +60,8 @@ export default function SettingsPage() {
       default_listing_limit: '5',
       enable_user_registration: true,
       default_user_role: 'corretor',
-      require_creci: true
+      require_creci: true,
+      global_meta_pixel_id: ''
     }
   });
 
@@ -82,7 +87,8 @@ export default function SettingsPage() {
         default_listing_limit: settings.default_listing_limit || '5',
         enable_user_registration: settings.enable_user_registration === 'true',
         default_user_role: (settings.default_user_role || 'corretor') as 'corretor' | 'parceiro',
-        require_creci: settings.require_creci === 'true'
+        require_creci: settings.require_creci === 'true',
+        global_meta_pixel_id: settings.global_meta_pixel_id || ''
       });
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -101,7 +107,8 @@ export default function SettingsPage() {
         { setting_name: 'default_listing_limit', setting_value: values.default_listing_limit.toString() },
         { setting_name: 'enable_user_registration', setting_value: values.enable_user_registration.toString() },
         { setting_name: 'default_user_role', setting_value: values.default_user_role },
-        { setting_name: 'require_creci', setting_value: values.require_creci.toString() }
+        { setting_name: 'require_creci', setting_value: values.require_creci.toString() },
+        { setting_name: 'global_meta_pixel_id', setting_value: values.global_meta_pixel_id || '' }
       ];
 
       // Update settings
@@ -226,6 +233,26 @@ export default function SettingsPage() {
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="global_meta_pixel_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pixel Meta Global</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="123456789" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        ID do Pixel Meta que será aplicado a todas as vitrines públicas. Digite apenas os números do ID do Pixel.
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
