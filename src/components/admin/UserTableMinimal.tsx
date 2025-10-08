@@ -84,7 +84,7 @@ export function UserTableMinimal({
   };
 
   const handleCloneUser = (userId: string) => {
-    const event = new CustomEvent('openUserClone', {
+    const event = new CustomEvent('openCloneUserDialog', {
       detail: { targetUserId: userId }
     });
     window.dispatchEvent(event);

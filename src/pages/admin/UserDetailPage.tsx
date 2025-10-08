@@ -52,10 +52,8 @@ import { ptBR } from 'date-fns/locale';
 import { getInitials, formatPhone, formatCurrency, formatWhatsAppForDisplay } from '@/lib/utils';
 import { UserStats } from '@/components/admin/UserStats';
 import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
-import { cloneUserComplete } from '@/lib/adminApi';
 import { syncUserCategoriesWithStorefrontSettings } from '@/lib/utils';
 import type { SubscriptionPlan, Subscription } from '@/types';
-import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
 import { ChangePasswordDialog } from '@/components/admin/ChangePasswordDialog';
 import { generateWhatsAppUrl } from '@/lib/utils';
 
@@ -63,18 +61,6 @@ const planFormSchema = z.object({
   plan_id: z.string().min(1, 'Selecione um plano'),
   status: z.enum(['active', 'pending', 'suspended', 'cancelled']),
   payment_status: z.enum(['paid', 'pending', 'overdue']),
-});
-
-const cloneUserFormSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-  confirmPassword: z.string(),
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  slug: z.string().min(2, 'Slug deve ter pelo menos 2 caracteres')
-    .regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífens'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não coincidem",
-  path: ["confirmPassword"],
 });
 
 interface UserDetail {
@@ -111,11 +97,7 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [savingPlan, setSavingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
-  const [showCloneDialog, setShowCloneDialog] = useState(false);
-  const [cloning, setCloning] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   const planForm = useForm<z.infer<typeof planFormSchema>>({
@@ -124,17 +106,6 @@ export default function UserDetailPage() {
       plan_id: '',
       status: 'pending',
       payment_status: 'pending',
-    },
-  });
-
-  const cloneForm = useForm<z.infer<typeof cloneUserFormSchema>>({
-    resolver: zodResolver(cloneUserFormSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
-      name: '',
-      slug: '',
     },
   });
 
@@ -335,54 +306,6 @@ export default function UserDetailPage() {
   };
 
   const handleCloneUser = async (values: z.infer<typeof cloneUserFormSchema>) => {
-    if (!userDetail) return;
-
-    try {
-      setCloning(true);
-
-      console.log('Starting user cloning process...');
-      
-      const { newUserId } = await cloneUserComplete(userDetail.id, {
-        email: values.email,
-        password: values.password,
-        name: values.name,
-        slug: values.slug,
-      });
-
-      console.log('User cloned successfully, syncing categories...');
-      
-      // Sync categories for the new user
-      try {
-        await syncUserCategoriesWithStorefrontSettings(newUserId);
-        console.log('Categories synced successfully');
-      } catch (syncError) {
-        console.warn('Category sync warning (non-critical):', syncError);
-      }
-
-      toast.success('Usuário clonado com sucesso! Todos os dados, configurações e imagens foram copiados.');
-      setShowCloneDialog(false);
-      cloneForm.reset();
-      
-      // Redirect to the new user's detail page
-      navigate(`/admin/users/${newUserId}`);
-      
-    } catch (error: any) {
-      console.error('Error cloning user:', error);
-      toast.error('Erro ao clonar usuário: ' + error.message);
-    } finally {
-      setCloning(false);
-    }
-  };
-
-  const generateSlugFromName = (name: string) => {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-  };
-
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
@@ -451,37 +374,18 @@ export default function UserDetailPage() {
         
         {/* Clone User Buttons - Only for admins */}
         {currentUser?.role === 'admin' && (
-          <>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                  <Copy className="h-4 w-4 mr-2" />
-                  Clonar Usuário
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Clonar Usuário</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação criará uma cópia completa do usuário "{userDetail.name}" incluindo:
-                    <br />• Perfil e configurações
-                    <br />• Todas as categorias
-                    <br />• Todos os produtos e suas imagens
-                    <br />• Configurações da vitrine
-                    <br />• Configurações de rastreamento
-                    <br /><br />
-                    O processo pode levar alguns minutos dependendo da quantidade de produtos e imagens.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => setShowCloneDialog(true)}>
-                    Continuar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              const event = new CustomEvent('openCloneUserDialog', {
+                detail: { targetUserId: userDetail.id }
+              });
+              window.dispatchEvent(event);
+            }}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Clonar Usuário
+          </Button>
         )}
         <h1 className="text-3xl font-bold">Detalhes do Usuário</h1>
       </div>
@@ -730,179 +634,6 @@ export default function UserDetailPage() {
           <UserStats userId={userDetail.id} />
         </div>
       </div>
-
-      {/* Clone User Dialog */}
-      <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Configurar Usuário Clonado</DialogTitle>
-            <DialogDescription>
-              Configure os dados do novo usuário que será criado como cópia de "{userDetail?.name}"
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form {...cloneForm}>
-            <form onSubmit={cloneForm.handleSubmit(handleCloneUser)} className="space-y-4">
-              <FormField
-                control={cloneForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome Completo</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Nome do novo usuário" 
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          // Auto-generate slug from name
-                          if (!cloneForm.getValues('slug')) {
-                            const slug = generateSlugFromName(e.target.value);
-                            cloneForm.setValue('slug', slug);
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={cloneForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email"
-                        placeholder="email@exemplo.com" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={cloneForm.control}
-                name="slug"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link da Vitrine</FormLabel>
-                    <FormControl>
-                      <div className="flex items-center">
-                        <span className="text-sm text-muted-foreground mr-2">vitrineturbo.com/</span>
-                        <Input placeholder="novo-usuario" {...field} />
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      URL única para a vitrine do novo usuário
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={cloneForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          type={showPassword ? "text" : "password"} 
-                          placeholder="Senha do novo usuário"
-                          {...field} 
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={cloneForm.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirmar Senha</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          type={showConfirmPassword ? "text" : "password"} 
-                          placeholder="Confirme a senha"
-                          {...field} 
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Atenção:</strong> O processo de clonagem pode levar alguns minutos para ser concluído, 
-                  especialmente se o usuário tiver muitos produtos e imagens. Todas as imagens serão copiadas 
-                  para novos arquivos para evitar conflitos.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowCloneDialog(false);
-                    cloneForm.reset();
-                    setShowPassword(false);
-                    setShowConfirmPassword(false);
-                  }}
-                  disabled={cloning}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={cloning}>
-                  {cloning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {cloning ? 'Clonando...' : 'Clonar Usuário'}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
 
       {/* Change Password Dialog */}
       <ChangePasswordDialog

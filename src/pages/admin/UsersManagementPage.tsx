@@ -11,6 +11,7 @@ import { UserTableMinimal } from '@/components/admin/UserTableMinimal';
 import { FloatingUserBulkActions } from '@/components/admin/FloatingUserBulkActions';
 import { UserSummaryCards } from '@/components/admin/UserSummaryCards';
 import { SimpleCopyProductsDialog } from '@/components/admin/SimpleCopyProductsDialog';
+import { CloneUserDialog } from '@/components/admin/CloneUserDialog';
 
 export default function UsersManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -24,14 +25,24 @@ export default function UsersManagementPage() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showSimpleCopyDialog, setShowSimpleCopyDialog] = useState(false);
   const [showCopyProductsDialog, setShowCopyProductsDialog] = useState(false);
+  const [showCloneUserDialog, setShowCloneUserDialog] = useState(false);
   const [cloneTargetUserId, setCloneTargetUserId] = useState<string>('');
   const [copyTargetUserId, setCopyTargetUserId] = useState<string>('');
+  const [userToCloneId, setUserToCloneId] = useState<string>('');
   const [showSelection, setShowSelection] = useState(false);
   const { user: currentUser } = useAuth();
   const { plans: subscriptionPlans } = useSubscriptionPlans();
 
   // Listener para abrir dialog de clonagem
   useEffect(() => {
+    const handleOpenCloneUserDialog = (event: CustomEvent) => {
+      const { targetUserId } = event.detail;
+      if (targetUserId) {
+        setUserToCloneId(targetUserId);
+        setShowCloneUserDialog(true);
+      }
+    };
+
     const handleOpenUserClone = (event: CustomEvent) => {
       const { targetUserId } = event.detail;
       if (targetUserId) {
@@ -47,9 +58,12 @@ export default function UsersManagementPage() {
         setShowCopyProductsDialog(true);
       }
     };
+
+    window.addEventListener('openCloneUserDialog', handleOpenCloneUserDialog as EventListener);
     window.addEventListener('openUserClone', handleOpenUserClone as EventListener);
     window.addEventListener('openCopyProducts', handleOpenCopyProducts as EventListener);
     return () => {
+      window.removeEventListener('openCloneUserDialog', handleOpenCloneUserDialog as EventListener);
       window.removeEventListener('openUserClone', handleOpenUserClone as EventListener);
       window.removeEventListener('openCopyProducts', handleOpenCopyProducts as EventListener);
     };
@@ -411,6 +425,17 @@ export default function UsersManagementPage() {
         loading={bulkActionLoading}
         subscriptionPlans={subscriptionPlans}
         currentUserRole={currentUser?.role || ''}
+      />
+
+      {/* Clone User Dialog */}
+      <CloneUserDialog
+        open={showCloneUserDialog}
+        onOpenChange={setShowCloneUserDialog}
+        sourceUserId={userToCloneId}
+        onSuccess={(newUserId) => {
+          // Navigate to the new user's detail page
+          window.location.href = `/admin/users/${newUserId}`;
+        }}
       />
 
       {/* Clone User Dialog */}
