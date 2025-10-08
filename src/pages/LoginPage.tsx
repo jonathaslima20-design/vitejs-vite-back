@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Loader, AlertCircle, ExternalLink, MessageCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader, CircleAlert as AlertCircle, ExternalLink, MessageCircle, Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
