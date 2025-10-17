@@ -210,37 +210,31 @@ export async function authenticateUser(email: string, password: string): Promise
   try {
     console.log('🔐 Attempting localStorage-only authentication for:', email);
 
-    // Query database directly for user with matching email
-    const { data: users, error: queryError } = await supabase
+    // Use Supabase's native authentication
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password
+    });
+
+    if (authError) {
+      console.error('🔐 Authentication error:', authError);
+      return { user: null, error: 'E-mail ou senha incorretos' };
+    }
+
+    if (!authData.user) {
+      return { user: null, error: 'E-mail ou senha incorretos' };
+    }
+
+    // Get user profile from users table
+    const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('*')
       .eq('email', email.trim())
-      .limit(1);
+      .single();
 
-    if (queryError) {
-      console.error('🔐 Database query error:', queryError);
-      return { user: null, error: 'Erro ao buscar usuário' };
-    }
-
-    if (!users || users.length === 0) {
-      return { user: null, error: 'E-mail ou senha incorretos' };
-    }
-
-    const userProfile = users[0];
-
-    // Verify password using Supabase RPC function
-    // For now, we'll use a simple password check
-    // In a production environment, you should implement proper password hashing
-    if (!userProfile.password_hash) {
-      console.error('🔐 User has no password set');
-      return { user: null, error: 'E-mail ou senha incorretos' };
-    }
-
-    // Simple password verification (this should be replaced with proper bcrypt verification)
-    // For now, we'll assume the password is stored as plain text (NOT RECOMMENDED for production)
-    if (userProfile.password_hash !== password) {
-      console.error('🔐 Password verification failed');
-      return { user: null, error: 'E-mail ou senha incorretos' };
+    if (profileError || !userProfile) {
+      console.error('🔐 Profile fetch error:', profileError);
+      return { user: null, error: 'Erro ao buscar perfil do usuário' };
     }
 
     // Check if user is blocked
@@ -254,7 +248,7 @@ export async function authenticateUser(email: string, password: string): Promise
     // Store user data with session
     storeUser(userProfile);
 
-    console.log('✅ localStorage authentication successful');
+    console.log('✅ Supabase authentication successful');
     return { user: userProfile, error: null };
 
   } catch (error: any) {
