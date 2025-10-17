@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 import type { User } from '@/types';
 
-// Simple authentication with localStorage persistence
+// Pure localStorage authentication (no Supabase Auth)
 export interface StoredCredentials {
   email: string;
   password: string;
@@ -208,33 +208,36 @@ export async function authenticateUser(email: string, password: string): Promise
   error: string | null;
 }> {
   try {
-    console.log('🔐 Attempting simplified authentication for:', email);
-    
-    // Try Supabase authentication first
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    console.log('🔐 Attempting localStorage-only authentication for:', email);
 
-    if (error) {
-      console.error('🔐 Supabase auth error:', error);
-      return { user: null, error: error.message };
-    }
-
-    if (!data.user) {
-      return { user: null, error: 'Falha na autenticação' };
-    }
-
-    // Get user profile from database
-    const { data: userProfile, error: profileError } = await supabase
+    // Query database directly for user with matching email
+    const { data: users, error: queryError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', data.user.id)
-      .single();
+      .eq('email', email.trim())
+      .limit(1);
 
-    if (profileError) {
-      console.error('🔐 Profile fetch error:', profileError);
-      return { user: null, error: 'Erro ao carregar perfil do usuário' };
+    if (queryError) {
+      console.error('🔐 Database query error:', queryError);
+      return { user: null, error: 'Erro ao buscar usuário' };
+    }
+
+    if (!users || users.length === 0) {
+      return { user: null, error: 'E-mail ou senha incorretos' };
+    }
+
+    const userProfile = users[0];
+
+    // Verify password using Supabase RPC function
+    const { data: passwordValid, error: passwordError } = await supabase
+      .rpc('verify_user_password', {
+        user_id: userProfile.id,
+        password_input: password
+      });
+
+    if (passwordError || !passwordValid) {
+      console.error('🔐 Password verification failed');
+      return { user: null, error: 'E-mail ou senha incorretos' };
     }
 
     // Check if user is blocked
@@ -244,13 +247,13 @@ export async function authenticateUser(email: string, password: string): Promise
 
     // Store credentials for future auto-login
     storeCredentials(email, password);
-    
+
     // Store user data with session
     storeUser(userProfile);
-    
-    console.log('✅ Simplified authentication successful');
+
+    console.log('✅ localStorage authentication successful');
     return { user: userProfile, error: null };
-    
+
   } catch (error: any) {
     console.error('❌ Authentication error:', error);
     return { user: null, error: error.message || 'Erro inesperado na autenticação' };
@@ -259,69 +262,55 @@ export async function authenticateUser(email: string, password: string): Promise
 
 // Register new user
 export async function registerUser(
-  email: string, 
-  password: string, 
+  email: string,
+  password: string,
   userData: { name: string; niche_type?: string; whatsapp: string }
 ): Promise<{
   user: StoredUser | null;
   error: string | null;
 }> {
   try {
-    console.log('📝 Attempting simplified registration for:', email);
-    
-    // Try Supabase registration
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          name: userData.name,
-          niche_type: userData.niche_type || 'diversos',
-          whatsapp: userData.whatsapp
-        },
-      },
-    });
+    console.log('📝 Attempting localStorage-only registration for:', email);
 
-    if (error) {
-      console.error('📝 Supabase registration error:', error);
-      return { user: null, error: error.message };
-    }
-
-    if (!data.user) {
-      return { user: null, error: 'Falha no registro' };
-    }
-
-    // Explicitly create/update user profile to ensure all data is saved
-    const { error: upsertError } = await supabase
+    // Check if user already exists
+    const { data: existingUsers, error: checkError } = await supabase
       .from('users')
-      .upsert({
-        id: data.user.id,
-        email: email.trim(),
-        name: userData.name,
-        role: 'corretor', // Default role for new registrations
-        niche_type: userData.niche_type || 'diversos',
-        whatsapp: userData.whatsapp,
-        listing_limit: 5, // Default listing limit
-        is_blocked: false,
-        plan_status: 'inactive', // New users start with inactive plan
-        created_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
+      .select('id')
+      .eq('email', email.trim())
+      .limit(1);
+
+    if (checkError) {
+      console.error('📝 Error checking existing user:', checkError);
+      return { user: null, error: 'Erro ao verificar usuário existente' };
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
+      return { user: null, error: 'Este e-mail já está cadastrado' };
+    }
+
+    // Create user using RPC function that handles password hashing
+    const { data: newUserId, error: createError } = await supabase
+      .rpc('create_user_with_password', {
+        user_email: email.trim(),
+        user_password: password,
+        user_name: userData.name,
+        user_niche_type: userData.niche_type || 'diversos',
+        user_whatsapp: userData.whatsapp
       });
 
-    if (upsertError) {
-      console.error('📝 Profile upsert error:', upsertError);
-      return { user: null, error: 'Erro ao criar perfil do usuário' };
+    if (createError) {
+      console.error('📝 User creation error:', createError);
+      return { user: null, error: 'Erro ao criar usuário' };
     }
 
-    // Now get the created user profile
+    // Get the created user profile
     const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', data.user.id)
+      .eq('id', newUserId)
       .single();
 
-    if (profileError) {
+    if (profileError || !userProfile) {
       console.error('📝 Profile fetch error after registration:', profileError);
       return { user: null, error: 'Erro ao carregar perfil após registro' };
     }
@@ -329,10 +318,10 @@ export async function registerUser(
     // Store credentials and user data
     storeCredentials(email, password);
     storeUser(userProfile);
-    
-    console.log('✅ Simplified registration successful');
+
+    console.log('✅ localStorage registration successful');
     return { user: userProfile, error: null };
-    
+
   } catch (error: any) {
     console.error('❌ Registration error:', error);
     return { user: null, error: error.message || 'Erro inesperado no registro' };
@@ -376,17 +365,14 @@ export async function autoLogin(): Promise<{
 export async function logoutUser(): Promise<void> {
   try {
     console.log('🚪 Logging out user');
-    
-    // Sign out from Supabase
-    await supabase.auth.signOut();
-    
+
     // Clear all stored data
     clearAllStoredData();
-    
+
     console.log('✅ User logged out successfully');
   } catch (error) {
     console.error('❌ Logout error:', error);
-    // Clear storage even if Supabase logout fails
+    // Clear storage even if there's an error
     clearAllStoredData();
   }
 }
