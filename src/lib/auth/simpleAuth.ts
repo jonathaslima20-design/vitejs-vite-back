@@ -267,32 +267,31 @@ export async function registerUser(
   error: string | null;
 }> {
   try {
-    console.log('📝 Attempting localStorage-only registration for:', email);
+    console.log('📝 Attempting Supabase registration for:', email);
 
-    // Check if user already exists
-    const { data: existingUsers, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email.trim())
-      .limit(1);
+    // Use Supabase's native authentication for registration
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: password
+    });
 
-    if (checkError) {
-      console.error('📝 Error checking existing user:', checkError);
-      return { user: null, error: 'Erro ao verificar usuário existente' };
+    if (authError) {
+      console.error('📝 Registration error:', authError);
+      if (authError.message.includes('already registered')) {
+        return { user: null, error: 'Este e-mail já está cadastrado' };
+      }
+      return { user: null, error: authError.message || 'Erro ao criar conta' };
     }
 
-    if (existingUsers && existingUsers.length > 0) {
-      return { user: null, error: 'Este e-mail já está cadastrado' };
+    if (!authData.user) {
+      return { user: null, error: 'Erro ao criar usuário' };
     }
 
-    // Create user using RPC function that handles password hashing
-    // Create user directly in the users table
-    // Note: In production, password should be properly hashed
+    // Create user profile in the users table
     const { data: userProfile, error: createError } = await supabase
       .from('users')
       .insert({
         email: email.trim(),
-        password_hash: password, // WARNING: This should be hashed in production
         name: userData.name,
         niche_type: userData.niche_type || 'diversos',
         whatsapp: userData.whatsapp,
@@ -312,7 +311,7 @@ export async function registerUser(
     storeCredentials(email, password);
     storeUser(userProfile);
 
-    console.log('✅ localStorage registration successful');
+    console.log('✅ Supabase registration successful');
     return { user: userProfile, error: null };
 
   } catch (error: any) {
