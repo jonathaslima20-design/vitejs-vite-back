@@ -34,6 +34,7 @@ import { getInitials, generateWhatsAppUrl, formatWhatsAppForDisplay } from '@/li
 import type { User, Product, Subscription, ReferralCommission } from '@/types';
 import PlanStatusBadge from '@/components/subscription/PlanStatusBadge';
 import { ChangePasswordDialog } from '@/components/admin/ChangePasswordDialog';
+import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
 
 interface UserStats {
   totalProducts: number;
@@ -586,83 +587,13 @@ export default function UserDetailPage() {
             </TabsContent>
 
             <TabsContent value="subscription" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Assinatura</CardTitle>
-                  <CardDescription>
-                    Detalhes da assinatura do usuário
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {subscription ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground">Plano</div>
-                          <div className="font-semibold">{subscription.plan_name}</div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Valor Mensal</div>
-                          <div className="font-semibold">
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: user.currency || 'BRL'
-                            }).format(subscription.monthly_price)}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Status</div>
-                          <div className="mt-1">
-                            <Badge className={
-                              subscription.status === 'active' ? 'bg-green-500' :
-                              subscription.status === 'pending' ? 'bg-yellow-500' :
-                              subscription.status === 'cancelled' ? 'bg-red-500' :
-                              'bg-gray-500'
-                            }>
-                              {subscription.status === 'active' ? 'Ativo' :
-                               subscription.status === 'pending' ? 'Pendente' :
-                               subscription.status === 'cancelled' ? 'Cancelado' :
-                               subscription.status === 'suspended' ? 'Suspenso' :
-                               subscription.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Status do Pagamento</div>
-                          <div className="mt-1">
-                            <Badge variant={
-                              subscription.payment_status === 'paid' ? 'default' :
-                              subscription.payment_status === 'overdue' ? 'destructive' :
-                              'secondary'
-                            }>
-                              {subscription.payment_status === 'paid' ? 'Pago' :
-                               subscription.payment_status === 'pending' ? 'Pendente' :
-                               subscription.payment_status === 'overdue' ? 'Vencido' :
-                               subscription.payment_status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Data de Início</div>
-                          <div className="font-semibold">
-                            {format(new Date(subscription.start_date), 'dd/MM/yyyy', { locale: ptBR })}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground">Próximo Pagamento</div>
-                          <div className="font-semibold">
-                            {format(new Date(subscription.next_payment_date), 'dd/MM/yyyy', { locale: ptBR })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <p>Nenhuma assinatura ativa</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <SubscriptionManagement
+                subscription={subscription}
+                userId={userId}
+                userName={user.name}
+                currency={user.currency}
+                onSubscriptionUpdate={fetchUserDetails}
+              />
             </TabsContent>
 
             <TabsContent value="referrals" className="space-y-4">
