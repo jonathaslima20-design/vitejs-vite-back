@@ -66,18 +66,18 @@ export default function ListingsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Meus Produtos</h1>
+      <div className="w-full py-4 md:py-8 px-2 md:px-4 lg:container lg:mx-auto">
+        <div className="flex justify-between items-center mb-4 md:mb-6 px-2">
+          <h1 className="text-2xl md:text-3xl font-bold">Meus Produtos</h1>
           <div className="flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
             Carregando...
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-4 px-2">
           {[1, 2, 3, 4, 5].map((n) => (
             <Card key={n} className="animate-pulse">
-              <CardContent className="p-3">
+              <CardContent className="p-2 md:p-3">
                 <div className="aspect-square bg-white rounded-lg border border-gray-200 shadow-sm mb-3" />
                 <div className="h-3 bg-muted rounded w-3/4 mb-2" />
                 <div className="h-3 bg-muted rounded w-1/2" />
@@ -90,7 +90,7 @@ export default function ListingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="w-full py-4 md:py-8 px-2 md:px-4 lg:container lg:mx-auto">
       <ListingsHeader
         canReorder={canReorder}
         isReorderModeActive={isReorderModeActive}

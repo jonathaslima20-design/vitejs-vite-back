@@ -83,28 +83,28 @@ export function ProductGrid({
 
     return (
       <Card className={`h-full hover:shadow-lg transition-all duration-200 group ${isDragMode ? 'cursor-grab active:cursor-grabbing' : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-        <CardContent className="p-3 relative">
+        <CardContent className="p-2 md:p-3 relative">
           {/* Selection Checkbox - Only show when not in drag mode */}
           {!isDragMode && (
-            <div className="absolute top-2 left-2 z-10">
+            <div className="absolute top-1 left-1 md:top-2 md:left-2 z-10">
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelectProduct(product.id, checked as boolean)}
-                className="bg-background/90 backdrop-blur-sm border-2"
+                className="bg-background/90 backdrop-blur-sm border-2 scale-75 md:scale-100"
               />
             </div>
           )}
           
           {/* Drag Handle - Only show when in drag mode */}
           {isDragMode && (
-            <div className="absolute top-2 right-2 z-10 bg-primary/90 backdrop-blur-sm rounded-md p-1.5 opacity-80 group-hover:opacity-100 transition-all duration-200 border border-primary/30">
-              <GripVertical className="h-4 w-4 text-primary" />
+            <div className="absolute top-1 right-1 md:top-2 md:right-2 z-10 bg-primary/90 backdrop-blur-sm rounded-md p-1 md:p-1.5 opacity-80 group-hover:opacity-100 transition-all duration-200 border border-primary/30">
+              <GripVertical className="h-3 w-3 md:h-4 md:w-4 text-primary" />
             </div>
           )}
 
           <Link to={`/dashboard/products/${product.id}/edit`} className={isDragMode ? 'pointer-events-none' : ''}>
             {/* Container da imagem EXATAMENTE como na imagem de referência */}
-            <div className="aspect-square relative mb-3">
+            <div className="aspect-square relative mb-2 md:mb-3">
               <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {product.featured_image_url ? (
                   <img
@@ -138,38 +138,38 @@ export function ProductGrid({
               {/* Visibility Indicator */}
               <div className="absolute top-1 left-1">
                 {product.is_visible_on_storefront ? (
-                  <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-xs px-1 py-0">
-                    <CheckSquare className="h-3 w-3 mr-1" />
-                    Visível
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-[10px] md:text-xs px-1 py-0">
+                    <CheckSquare className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
+                    <span className="hidden md:inline">Visível</span>
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs px-1 py-0">
-                    <Square className="h-3 w-3 mr-1" />
-                    Oculto
+                  <Badge variant="secondary" className="text-[10px] md:text-xs px-1 py-0">
+                    <Square className="h-2.5 w-2.5 md:h-3 md:w-3 mr-0.5 md:mr-1" />
+                    <span className="hidden md:inline">Oculto</span>
                   </Badge>
                 )}
               </div>
             </div>
             
-            <h2 className="font-semibold mb-2 line-clamp-2 text-xs leading-tight">{product.title}</h2>
-            
+            <h2 className="font-semibold mb-1 md:mb-2 line-clamp-2 text-[10px] md:text-xs leading-tight">{product.title}</h2>
+
             {/* Price Display with Discount Support */}
-            <div className="mb-3">
+            <div className="mb-2 md:mb-3">
               {hasDiscount ? (
-                <div className="space-y-1">
+                <div className="space-y-0.5 md:space-y-1">
                   {/* Original price with strikethrough */}
-                  <div className="text-xs text-muted-foreground line-through">
+                  <div className="text-[10px] md:text-xs text-muted-foreground line-through">
                     {product.is_starting_price ? 'A partir de ' : ''}
                     {formatCurrency(originalPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
                   </div>
                   {/* Discounted price */}
-                  <div className="text-sm font-bold text-primary">
+                  <div className="text-xs md:text-sm font-bold text-primary">
                     {product.is_starting_price ? 'A partir de ' : ''}
                     {formatCurrency(displayPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
                   </div>
                 </div>
               ) : (
-                <div className="text-sm font-bold text-primary">
+                <div className="text-xs md:text-sm font-bold text-primary">
                   {product.is_starting_price ? 'A partir de ' : ''}
                   {formatCurrency(displayPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
                 </div>
@@ -185,8 +185,8 @@ export function ProductGrid({
           </Link>
 
           {/* Quick Visibility Toggle */}
-          <div className={`flex items-center justify-between pt-2 border-t ${isDragMode ? 'pointer-events-none opacity-50' : ''}`}>
-            <span className="text-xs text-muted-foreground">
+          <div className={`flex items-center justify-between pt-1.5 md:pt-2 border-t ${isDragMode ? 'pointer-events-none opacity-50' : ''}`}>
+            <span className="text-[10px] md:text-xs text-muted-foreground">
               Vitrine
             </span>
             <Switch
@@ -236,7 +236,7 @@ export function ProductGrid({
               <div
                 {...provided.droppableProps}
                 ref={provided.innerRef}
-                className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-6 min-h-[400px] transition-all duration-500 ease-in-out ${
+                className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4 p-2 md:p-6 min-h-[400px] transition-all duration-500 ease-in-out ${
                   snapshot.isDraggingOver 
                     ? 'bg-gradient-to-br from-primary/5 to-blue-500/5 border-2 border-dashed border-primary/30 rounded-xl shadow-inner scale-[1.02]' 
                     : 'border-2 border-transparent rounded-xl scale-100'
@@ -292,7 +292,7 @@ export function ProductGrid({
         </DragDropContext>
       ) : (
         // Regular grid without drag and drop
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
           {products.map((product, index) => (
             <ProductCard 
               key={product.id} 

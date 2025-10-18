@@ -123,15 +123,15 @@ export function EnhancedProductGrid({
             ? 'shadow-2xl ring-2 ring-primary/50 bg-background/95 backdrop-blur-sm transform rotate-2 scale-105' 
             : 'hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 cursor-grab'
         }`}>
-          <CardContent className="p-3 relative">
+          <CardContent className="p-2 md:p-3 relative">
             {/* Position Indicator */}
-            <div className="absolute top-2 left-2 z-20 bg-primary/90 text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm">
+            <div className="absolute top-1 left-1 md:top-2 md:left-2 z-20 bg-primary/90 text-primary-foreground rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-[10px] md:text-xs font-bold shadow-sm">
               {index + 1}
             </div>
 
             {/* Enhanced Drag Handle */}
-            <div className="absolute top-2 right-2 z-20 bg-gradient-to-br from-primary/90 to-primary/70 backdrop-blur-sm rounded-lg p-2 opacity-90 group-hover:opacity-100 transition-all duration-300 border border-primary/40 shadow-lg">
-              <GripVertical className="h-4 w-4 text-white drop-shadow-sm" />
+            <div className="absolute top-1 right-1 md:top-2 md:right-2 z-20 bg-gradient-to-br from-primary/90 to-primary/70 backdrop-blur-sm rounded-lg p-1.5 md:p-2 opacity-90 group-hover:opacity-100 transition-all duration-300 border border-primary/40 shadow-lg">
+              <GripVertical className="h-3 w-3 md:h-4 md:w-4 text-white drop-shadow-sm" />
               <motion.div
                 animate={isDragging ? { scale: [1, 1.2, 1] } : {}}
                 transition={{ duration: 0.5, repeat: isDragging ? Infinity : 0 }}
@@ -140,7 +140,7 @@ export function EnhancedProductGrid({
             </div>
 
             {/* Product Image */}
-            <div className="aspect-square relative mb-3 mt-8">
+            <div className="aspect-square relative mb-2 md:mb-3 mt-6 md:mt-8">
               <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                 {product.featured_image_url ? (
                   <img
@@ -168,11 +168,11 @@ export function EnhancedProductGrid({
             </div>
 
             {/* Product Info */}
-            <h2 className="font-semibold mb-2 line-clamp-2 text-xs leading-tight">
+            <h2 className="font-semibold mb-1 md:mb-2 line-clamp-2 text-[10px] md:text-xs leading-tight">
               {product.title}
             </h2>
-            
-            <div className="text-sm font-bold text-primary">
+
+            <div className="text-xs md:text-sm font-bold text-primary">
               {product.is_starting_price ? 'A partir de ' : ''}
               {formatCurrency(displayPrice!, user?.currency || 'BRL', user?.language || 'pt-BR')}
             </div>
@@ -223,7 +223,7 @@ export function EnhancedProductGrid({
               <div
                 {...provided.droppableProps}
                 ref={provided.innerRef}
-                className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-6 min-h-[400px] transition-all duration-500 ease-in-out ${
+                className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4 p-2 md:p-6 min-h-[400px] transition-all duration-500 ease-in-out ${
                   reordering ? 'pointer-events-none opacity-70' : ''
                 }`}
               >

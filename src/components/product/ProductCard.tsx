@@ -105,7 +105,7 @@ export function ProductCard({
       >
         <div className="rounded-xl border bg-card text-card-foreground shadow overflow-hidden h-full flex flex-col hover:shadow-lg transition-all duration-300 cursor-pointer">
           {/* Image Container */}
-          <div className="relative aspect-square overflow-hidden p-3">
+          <div className="relative aspect-square overflow-hidden p-2 md:p-3">
             <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
               <img
                 src={product.featured_image_url || 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg'}
@@ -121,8 +121,8 @@ export function ProductCard({
             
             {/* Discount Badge - Top Right */}
             {hasDiscount && discountPercentage && (
-              <div className="absolute top-5 right-5">
-                <Badge className="bg-green-600 hover:bg-green-700 text-white border-transparent text-xs px-2 py-1">
+              <div className="absolute top-3 right-3 md:top-5 md:right-5">
+                <Badge className="bg-green-600 hover:bg-green-700 text-white border-transparent text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1">
                   -{discountPercentage}%
                 </Badge>
               </div>
@@ -130,25 +130,25 @@ export function ProductCard({
           </div>
 
           {/* Product Info */}
-          <div className="p-4 flex-1 flex flex-col">
-            <h3 className="font-semibold text-sm leading-tight mb-3 line-clamp-2 h-[35px]">
+          <div className="p-2 md:p-4 flex-1 flex flex-col">
+            <h3 className="font-semibold text-xs md:text-sm leading-tight mb-2 md:mb-3 line-clamp-2 min-h-[32px] md:h-[35px]">
               {product.title}
             </h3>
             
             <div className="mt-auto">
               {/* Price Display */}
               {hasDiscount ? (
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground line-through">
+                <div className="space-y-0.5 md:space-y-1">
+                  <div className="text-[10px] md:text-xs text-muted-foreground line-through">
                     {formatCurrencyI18n(originalPrice!, currency, language)}
                   </div>
-                  <div className="text-lg font-bold text-primary">
+                  <div className="text-sm md:text-lg font-bold text-primary">
                     {product.is_starting_price ? t('product.starting_from') + ' ' : ''}
                     {formatCurrencyI18n(displayPrice!, currency, language)}
                   </div>
                 </div>
               ) : (
-                <div className="text-lg font-bold text-primary">
+                <div className="text-sm md:text-lg font-bold text-primary">
                   {product.is_starting_price ? t('product.starting_from') + ' ' : ''}
                   {formatCurrencyI18n(displayPrice!, currency, language)}
                 </div>
@@ -164,13 +164,13 @@ export function ProductCard({
 
               {/* Add to Cart Button */}
               {isAvailable && hasPrice && (
-                <div className="mt-3 pt-2 border-t">
+                <div className="mt-2 md:mt-3 pt-1.5 md:pt-2 border-t">
                   <Button
                     size="sm"
-                    className="w-full text-xs h-8"
+                    className="w-full text-[10px] md:text-xs h-7 md:h-8"
                     onClick={handleAddToCart}
                   >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    <ShoppingCart className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
                     {totalInCart > 0 ? `No Carrinho (${totalInCart})` : 'Adicionar'}
                   </Button>
                 </div>
@@ -178,11 +178,11 @@ export function ProductCard({
 
               {/* External Checkout Button */}
               {isAvailable && product.external_checkout_url && (
-                <div className="mt-3 pt-2 border-t">
+                <div className="mt-2 md:mt-3 pt-1.5 md:pt-2 border-t">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full text-xs h-8"
+                    className="w-full text-[10px] md:text-xs h-7 md:h-8"
                     asChild
                     onClick={(e) => e.stopPropagation()}
                   >
