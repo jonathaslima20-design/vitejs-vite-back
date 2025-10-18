@@ -79,6 +79,7 @@ const subscriptionFormSchema = z.object({
   user_id: z.string().min(1, 'Usuário é obrigatório'),
   plan_name: z.string().min(1, 'Nome do plano é obrigatório'),
   monthly_price: z.string().min(1, 'Valor é obrigatório'),
+  billing_cycle: z.enum(['monthly', 'quarterly', 'semiannually', 'annually']).default('monthly'),
   status: z.enum(['active', 'pending', 'cancelled', 'suspended']),
   payment_status: z.enum(['paid', 'pending', 'overdue']),
   start_date: z.string().min(1, 'Data de início é obrigatória'),
@@ -113,6 +114,7 @@ export default function FinancialPage() {
     defaultValues: {
       plan_name: 'Plano Básico',
       monthly_price: '29.90',
+      billing_cycle: 'monthly',
       status: 'active',
       payment_status: 'paid',
     },
@@ -383,6 +385,7 @@ export default function FinancialPage() {
           user_id: values.user_id,
           plan_name: values.plan_name,
           monthly_price: parseFloat(values.monthly_price),
+          billing_cycle: values.billing_cycle,
           status: values.status,
           payment_status: values.payment_status,
           start_date: values.start_date,
@@ -410,6 +413,7 @@ export default function FinancialPage() {
         .update({
           plan_name: values.plan_name,
           monthly_price: parseFloat(values.monthly_price),
+          billing_cycle: values.billing_cycle,
           status: values.status,
           payment_status: values.payment_status,
           start_date: values.start_date,
@@ -610,6 +614,30 @@ export default function FinancialPage() {
                                 {sub.user?.name} - {sub.plan_name}
                               </SelectItem>
                             ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={subscriptionForm.control}
+                    name="billing_cycle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ciclo de Cobrança</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="monthly">Mensal</SelectItem>
+                            <SelectItem value="quarterly">Trimestral</SelectItem>
+                            <SelectItem value="semiannually">Semestral</SelectItem>
+                            <SelectItem value="annually">Anual</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -979,6 +1007,7 @@ export default function FinancialPage() {
                       <TableHead>Usuário</TableHead>
                       <TableHead>Plano</TableHead>
                       <TableHead>Valor</TableHead>
+                      <TableHead>Ciclo</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Pagamento</TableHead>
                       <TableHead>Próximo Pagamento</TableHead>
@@ -996,6 +1025,9 @@ export default function FinancialPage() {
                         </TableCell>
                         <TableCell>{subscription.plan_name}</TableCell>
                         <TableCell>{formatCurrency(subscription.monthly_price)}</TableCell>
+                        <TableCell>
+                          {subscription.billing_cycle ? getBillingCycleLabel(subscription.billing_cycle) : 'Mensal'}
+                        </TableCell>
                         <TableCell>{getStatusBadge(subscription.status, 'subscription')}</TableCell>
                         <TableCell>{getStatusBadge(subscription.payment_status, 'payment')}</TableCell>
                         <TableCell>

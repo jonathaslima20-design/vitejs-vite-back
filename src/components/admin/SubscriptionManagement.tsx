@@ -55,7 +55,7 @@ export default function SubscriptionManagement({
   const [editForm, setEditForm] = useState({
     plan_name: subscription?.plan_name || '',
     monthly_price: subscription?.monthly_price || 0,
-    billing_cycle: subscription?.billing_cycle || 'monthly',
+    billing_cycle: (subscription?.billing_cycle as BillingCycle) || 'monthly',
     status: subscription?.status || 'pending',
     payment_status: subscription?.payment_status || 'pending',
     next_payment_date: subscription?.next_payment_date || '',
@@ -168,7 +168,7 @@ export default function SubscriptionManagement({
         .update({
           plan_name: editForm.plan_name,
           monthly_price: editForm.monthly_price,
-          billing_cycle: editForm.billing_cycle,
+          billing_cycle: editForm.billing_cycle as BillingCycle,
           status: editForm.status,
           payment_status: editForm.payment_status,
           next_payment_date: editForm.next_payment_date,
@@ -199,7 +199,7 @@ export default function SubscriptionManagement({
           user_id: userId,
           plan_name: createForm.plan_name,
           monthly_price: createForm.monthly_price,
-          billing_cycle: createForm.billing_cycle,
+          billing_cycle: createForm.billing_cycle as BillingCycle,
           status: createForm.status,
           payment_status: createForm.payment_status,
           start_date: createForm.start_date,
