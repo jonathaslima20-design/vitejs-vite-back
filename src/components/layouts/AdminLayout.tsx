@@ -27,8 +27,8 @@ export default function AdminLayout() {
       />
       <div className="flex-1 flex flex-col">
         <AdminHeader onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <motion.main 
-          className="flex-1 p-4 md:p-6 lg:p-8 max-w-screen-2xl mx-auto w-full"
+        <motion.main
+          className="flex-1 p-3 md:p-6 lg:p-8 max-w-screen-2xl mx-auto w-full"
           key={location.pathname}
         >
           <Outlet />

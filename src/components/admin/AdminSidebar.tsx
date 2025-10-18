@@ -51,9 +51,9 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
   // Classes for navigation links
   const navItemClasses = ({ isActive }: { isActive: boolean }) => {
     return cn(
-      "flex items-center space-x-3 py-2 px-3 rounded-md transition-colors",
+      "flex items-center space-x-2 md:space-x-3 py-2 px-2.5 md:px-3 rounded-md transition-colors min-h-[40px] md:min-h-[44px]",
       {
-        "bg-primary/10 text-primary": isActive,
+        "bg-primary/10 text-primary font-medium": isActive,
         "hover:bg-muted text-muted-foreground hover:text-foreground": !isActive,
       }
     );
@@ -62,63 +62,64 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
   // Sidebar content
   const sidebarContent = (
     <>
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between p-3 md:p-4">
         <div className="flex items-center space-x-2">
-          <Logo showText={false} size="md" />
+          <Logo showText={false} size="sm" className="md:w-8 md:h-8" />
           {expanded && (
             <div className="flex items-center">
-              <span className="font-bold">
+              <span className="font-bold text-sm md:text-base">
                 {user?.role === 'parceiro' ? 'Revenda' : 'Admin'}
               </span>
-              <ShieldCheck className="h-4 w-4 ml-1 text-primary" />
+              <ShieldCheck className="h-3.5 w-3.5 md:h-4 md:w-4 ml-1 text-primary" />
             </div>
           )}
         </div>
-        
+
         {/* Mobile close button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={toggleMobileSidebar}
-          className="md:hidden"
+          className="md:hidden h-8 w-8"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </Button>
-        
+
         {/* Desktop expand/collapse button */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={toggleSidebar}
           className="hidden md:flex"
         >
           {expanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
         </Button>
       </div>
-      
+
       <div className="px-2 py-2">
-        <nav className="space-y-1 flex flex-col">
+        <nav className="space-y-0.5 flex flex-col">
           {navigation.map((item) => (
             <NavLink
               key={item.name}
               to={item.href}
               className={navItemClasses}
+              onClick={() => onMobileToggle?.()}
             >
-              <item.icon className="h-5 w-5" />
-              {expanded && <span>{item.name}</span>}
+              <item.icon className="h-4 w-4 md:h-5 md:w-5 shrink-0" />
+              {expanded && <span className="text-sm md:text-base">{item.name}</span>}
             </NavLink>
           ))}
         </nav>
       </div>
-      
-      <div className="mt-auto p-4">
-        <Separator className="mb-4" />
-        <button 
-          onClick={() => signOut()} 
+
+      <div className="mt-auto p-3 md:p-4">
+        <Separator className="mb-3 md:mb-4" />
+        <button
+          onClick={() => signOut()}
           className="flex items-center space-x-3 py-2 w-full text-left text-muted-foreground hover:text-destructive transition-colors"
         >
-          <LogOut className="h-5 w-4" />
-          {expanded && <span>Sair</span>}
+          <LogOut className="h-4 w-4 md:h-5 md:w-5 shrink-0" />
+          {expanded && <span className="text-sm md:text-base">Sair</span>}
         </button>
       </div>
     </>
@@ -144,9 +145,9 @@ export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: Adm
       {mobileOverlay}
       
       {/* Mobile sidebar */}
-      <div 
+      <div
         className={cn(
-          "fixed inset-y-0 left-0 w-64 bg-background border-r z-50 transition-transform duration-300 md:hidden",
+          "fixed inset-y-0 left-0 w-[260px] bg-background border-r z-50 transition-transform duration-300 md:hidden flex flex-col",
           {
             "translate-x-0": mobileOpen,
             "-translate-x-full": !mobileOpen,
