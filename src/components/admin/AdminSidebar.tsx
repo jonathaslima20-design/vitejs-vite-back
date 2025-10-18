@@ -21,9 +21,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  mobileOpen?: boolean;
+  onMobileToggle?: () => void;
+}
+
+export default function AdminSidebar({ mobileOpen = false, onMobileToggle }: AdminSidebarProps) {
   const [expanded, setExpanded] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const { signOut, user } = useAuth();
   
   // Filter navigation items based on user role
@@ -41,7 +45,7 @@ export default function AdminSidebar() {
   };
   
   const toggleMobileSidebar = () => {
-    setMobileOpen(!mobileOpen);
+    onMobileToggle?.();
   };
   
   // Classes for navigation links
@@ -136,16 +140,6 @@ export default function AdminSidebar() {
   
   return (
     <>
-      {/* Mobile trigger */}
-      <Button 
-        variant="outline" 
-        size="icon" 
-        className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg md:hidden"
-        onClick={toggleMobileSidebar}
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
-      
       {/* Mobile overlay */}
       {mobileOverlay}
       

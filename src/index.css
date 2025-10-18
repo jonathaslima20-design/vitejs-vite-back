@@ -401,3 +401,53 @@ body {
 .prose li p {
   margin: 0;
 }
+
+/* Admin table sticky columns with proper z-index handling */
+.admin-table-container {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-table-container table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Sticky column shadows on scroll */
+.admin-table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.admin-table-container::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+.admin-table-container::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.admin-table-container::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Ensure sticky cells maintain proper styling */
+@media (max-width: 768px) {
+  .sticky-left-shadow {
+    box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .sticky-right-shadow {
+    box-shadow: -2px 0 4px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .sticky-left-shadow {
+    box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .sticky-right-shadow {
+    box-shadow: -2px 0 4px -2px rgba(0, 0, 0, 0.3);
+  }
+}

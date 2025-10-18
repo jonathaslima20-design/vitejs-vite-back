@@ -130,11 +130,11 @@ export function UserTableMinimal({
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="rounded-md border">
-          <Table>
+        <div className="rounded-md border admin-table-container">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead className="w-12 sticky left-0 bg-background z-10">
                   {(showSelection || selectedUsers.size > 0) && (
                     <Checkbox
                       checked={allSelected}
@@ -144,24 +144,24 @@ export function UserTableMinimal({
                     />
                   )}
                 </TableHead>
-                <TableHead>Usuário</TableHead>
+                <TableHead className="sticky left-12 bg-background z-10">Usuário</TableHead>
                 <TableHead>Função</TableHead>
                 <TableHead>Plano</TableHead>
                 <TableHead>WhatsApp</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Cadastro</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-12 sticky right-0 bg-background z-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
-                <TableRow 
-                  key={user.id} 
+                <TableRow
+                  key={user.id}
                   className={`${selectedUsers.has(user.id) ? "bg-muted/50" : ""} transition-colors`}
                   onMouseEnter={() => setHoveredRow(user.id)}
                   onMouseLeave={() => setHoveredRow(null)}
                 >
-                  <TableCell>
+                  <TableCell className="sticky left-0 bg-background z-10">
                     {(showSelection || selectedUsers.size > 0 || hoveredRow === user.id) && (
                       <Checkbox
                         checked={selectedUsers.has(user.id)}
@@ -170,8 +170,8 @@ export function UserTableMinimal({
                       />
                     )}
                   </TableCell>
-                  
-                  <TableCell>
+
+                  <TableCell className="sticky left-12 bg-background z-10">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={user.avatar_url} alt={user.name} />
@@ -236,7 +236,7 @@ export function UserTableMinimal({
                     </div>
                   </TableCell>
                   
-                  <TableCell>
+                  <TableCell className="sticky right-0 bg-background z-10">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

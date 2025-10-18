@@ -98,27 +98,27 @@ export function FloatingUserBulkActions({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 100 }}
         transition={{ duration: 0.3 }}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+        className="fixed bottom-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:right-auto z-50"
       >
-        <div className="bg-background/95 backdrop-blur-sm border rounded-xl shadow-xl p-4 min-w-[400px]">
-          <div className="flex items-center justify-between gap-4">
+        <div className="bg-background/95 backdrop-blur-sm border rounded-xl shadow-xl p-3 md:p-4 md:min-w-[400px]">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
             {/* Selection Info */}
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="bg-primary/10 text-primary">
-                {selectedCount} usuário{selectedCount > 1 ? 's' : ''} selecionado{selectedCount > 1 ? 's' : ''}
+            <div className="flex items-center justify-between w-full md:w-auto gap-3">
+              <Badge variant="secondary" className="bg-primary/10 text-primary text-xs md:text-sm">
+                {selectedCount} usuário{selectedCount > 1 ? 's' : ''}
               </Badge>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onClearSelection}
-                className="h-8 w-8 p-0"
+                className="h-7 w-7 p-0"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
               {/* Block/Unblock Actions */}
               {unblockedCount > 0 && (
                 <AlertDialog>
@@ -127,10 +127,11 @@ export function FloatingUserBulkActions({
                       variant="outline"
                       size="sm"
                       disabled={loading}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap"
                     >
-                      <Ban className="h-4 w-4" />
-                      Bloquear ({unblockedCount})
+                      <Ban className="h-3 w-3 md:h-4 md:w-4" />
+                      <span className="hidden md:inline">Bloquear ({unblockedCount})</span>
+                      <span className="md:hidden">Bloquear</span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -161,10 +162,11 @@ export function FloatingUserBulkActions({
                       variant="outline"
                       size="sm"
                       disabled={loading}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap"
                     >
-                      <CheckCircle className="h-4 w-4" />
-                      Desbloquear ({blockedCount})
+                      <CheckCircle className="h-3 w-3 md:h-4 md:w-4" />
+                      <span className="hidden md:inline">Desbloquear ({blockedCount})</span>
+                      <span className="md:hidden">Desbloquear</span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -188,8 +190,8 @@ export function FloatingUserBulkActions({
               {/* More Actions Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={loading}>
-                    <MoreHorizontal className="h-4 w-4" />
+                  <Button variant="outline" size="sm" disabled={loading} className="whitespace-nowrap">
+                    <MoreHorizontal className="h-3 w-3 md:h-4 md:w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

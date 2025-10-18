@@ -1,17 +1,29 @@
-import { Bell } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials } from '@/lib/utils';
 
-export default function AdminHeader() {
+interface AdminHeaderProps {
+  onMenuClick?: () => void;
+}
+
+export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const { user } = useAuth();
-  
+
   return (
     <header className="border-b bg-background py-3 px-4 lg:px-8 flex items-center justify-between">
-      <div>
-        <h1 className="font-semibold text-xl">Painel Administrativo</h1>
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <h1 className="font-semibold text-lg md:text-xl">Painel Administrativo</h1>
       </div>
       
       <div className="flex items-center space-x-4">
