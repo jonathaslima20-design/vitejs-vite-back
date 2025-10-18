@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { format, addMonths, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle, XCircle, Edit, Plus, Calendar } from 'lucide-react';
+import { CircleCheck as CheckCircle, Circle as XCircle, CreditCard as Edit, Plus, Calendar } from 'lucide-react';
 import type { Subscription, SubscriptionStatus, PaymentStatus, BillingCycle } from '@/types';
 
 interface SubscriptionManagementProps {
