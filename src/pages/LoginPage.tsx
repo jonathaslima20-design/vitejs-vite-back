@@ -78,8 +78,10 @@ export default function LoginPage() {
         
         if (error === 'BLOCKED_USER') {
           friendlyError = 'Usuário desabilitado por pendência financeira, entre em contato com o suporte.';
-        } else if (error.includes('Invalid login credentials') || error.includes('invalid_credentials')) {
+        } else if (error.includes('Invalid login credentials') || error.includes('invalid_credentials') || error.includes('E-mail ou senha incorretos')) {
           friendlyError = 'E-mail ou senha incorretos!';
+        } else if (error.includes('Erro de conexão') || error.includes('Failed to fetch')) {
+          friendlyError = 'Erro de conexão com o servidor. Verifique sua conexão com a internet e tente novamente.';
         } else {
           friendlyError = error;
         }

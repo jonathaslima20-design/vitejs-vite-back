@@ -61,6 +61,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     params: {
       eventsPerSecond: 10
     }
+  },
+  // Add retry configuration for network issues
+  retries: 3,
+  // Add timeout configuration
+  fetch: (url, options = {}) => {
+    return fetch(url, {
+      ...options,
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(30000), // 30 second timeout
+    });
   }
 });
 

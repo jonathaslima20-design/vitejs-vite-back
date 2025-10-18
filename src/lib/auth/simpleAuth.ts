@@ -210,6 +210,26 @@ export async function authenticateUser(email: string, password: string): Promise
   try {
     console.log('🔐 Attempting localStorage-only authentication for:', email);
 
+    // Test Supabase connectivity before attempting authentication
+    try {
+      const { data: healthCheck } = await supabase.from('users').select('count').limit(1);
+      console.log('✅ Supabase connectivity test passed');
+    } catch (connectivityError: any) {
+      console.error('❌ Supabase connectivity test failed:', connectivityError);
+      
+      if (connectivityError.message?.includes('Failed to fetch')) {
+        return { 
+          user: null, 
+          error: 'Erro de conexão com o servidor. Verifique sua conexão com a internet e tente novamente.' 
+        };
+      }
+      
+      return { 
+        user: null, 
+        error: `Erro de conectividade: ${connectivityError.message}` 
+      };
+    }
+
     // Use Supabase's native authentication
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -218,7 +238,20 @@ export async function authenticateUser(email: string, password: string): Promise
 
     if (authError) {
       console.error('🔐 Authentication error:', authError);
-      return { user: null, error: 'E-mail ou senha incorretos' };
+      
+      // Handle specific authentication errors
+      if (authError.message?.includes('Failed to fetch')) {
+        return { 
+          user: null, 
+          error: 'Erro de conexão durante a autenticação. Verifique sua conexão e tente novamente.' 
+        };
+      }
+      
+      if (authError.message?.includes('Invalid login credentials')) {
+        return { user: null, error: 'E-mail ou senha incorretos' };
+      }
+      
+      return { user: null, error: authError.message || 'E-mail ou senha incorretos' };
     }
 
     if (!authData.user) {
@@ -234,7 +267,15 @@ export async function authenticateUser(email: string, password: string): Promise
 
     if (profileError || !userProfile) {
       console.error('🔐 Profile fetch error:', profileError);
-      return { user: null, error: 'Erro ao buscar perfil do usuário' };
+      
+      if (profileError?.message?.includes('Failed to fetch')) {
+        return { 
+          user: null, 
+          error: 'Erro de conexão ao buscar perfil. Tente novamente.' 
+        };
+      }
+      
+      return { user: null, error: profileError?.message || 'Erro ao buscar perfil do usuário' };
     }
 
     // Check if user is blocked
@@ -253,6 +294,15 @@ export async function authenticateUser(email: string, password: string): Promise
 
   } catch (error: any) {
     console.error('❌ Authentication error:', error);
+    
+    // Handle network/fetch errors specifically
+    if (error.message?.includes('Failed to fetch')) {
+      return { 
+        user: null, 
+        error: 'Erro de conexão com o servidor. Verifique sua conexão com a internet e tente novamente.' 
+      };
+    }
+    
     return { user: null, error: error.message || 'Erro inesperado na autenticação' };
   }
 }
