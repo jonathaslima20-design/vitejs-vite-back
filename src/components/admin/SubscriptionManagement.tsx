@@ -27,10 +27,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CheckCircle, XCircle, Edit, Plus, Calendar } from 'lucide-react';
-import type { Subscription, SubscriptionStatus, PaymentStatus } from '@/types';
+import type { Subscription, SubscriptionStatus, PaymentStatus, BillingCycle } from '@/types';
 
 interface SubscriptionManagementProps {
   subscription: Subscription | null;
@@ -54,6 +54,7 @@ export default function SubscriptionManagement({
   const [editForm, setEditForm] = useState({
     plan_name: subscription?.plan_name || '',
     monthly_price: subscription?.monthly_price || 0,
+    billing_cycle: subscription?.billing_cycle || 'monthly',
     status: subscription?.status || 'pending',
     payment_status: subscription?.payment_status || 'pending',
     next_payment_date: subscription?.next_payment_date || '',
@@ -62,6 +63,7 @@ export default function SubscriptionManagement({
   const [createForm, setCreateForm] = useState({
     plan_name: 'Plano Básico',
     monthly_price: 29.90,
+    billing_cycle: 'monthly' as BillingCycle,
     status: 'active' as SubscriptionStatus,
     payment_status: 'paid' as PaymentStatus,
     start_date: format(new Date(), 'yyyy-MM-dd'),
@@ -132,6 +134,7 @@ export default function SubscriptionManagement({
         .update({
           plan_name: editForm.plan_name,
           monthly_price: editForm.monthly_price,
+          billing_cycle: editForm.billing_cycle,
           status: editForm.status,
           payment_status: editForm.payment_status,
           next_payment_date: editForm.next_payment_date,
@@ -162,6 +165,7 @@ export default function SubscriptionManagement({
           user_id: userId,
           plan_name: createForm.plan_name,
           monthly_price: createForm.monthly_price,
+          billing_cycle: createForm.billing_cycle,
           status: createForm.status,
           payment_status: createForm.payment_status,
           start_date: createForm.start_date,
@@ -269,6 +273,52 @@ export default function SubscriptionManagement({
     }
   };
 
+  const getBillingCycleLabel = (cycle: string) => {
+    switch (cycle) {
+      case 'monthly':
+        return 'Mensal';
+      case 'quarterly':
+        return 'Trimestral';
+      case 'semiannually':
+        return 'Semestral';
+      case 'annually':
+        return 'Anual';
+      default:
+        return cycle;
+    }
+  };
+
+  const calculateNextPaymentDate = (startDate: string, cycle: BillingCycle): string => {
+    const date = new Date(startDate);
+    switch (cycle) {
+      case 'monthly':
+        return format(addMonths(date, 1), 'yyyy-MM-dd');
+      case 'quarterly':
+        return format(addMonths(date, 3), 'yyyy-MM-dd');
+      case 'semiannually':
+        return format(addMonths(date, 6), 'yyyy-MM-dd');
+      case 'annually':
+        return format(addMonths(date, 12), 'yyyy-MM-dd');
+      default:
+        return format(addMonths(date, 1), 'yyyy-MM-dd');
+    }
+  };
+
+  const calculateTotalPrice = (monthlyPrice: number, cycle: BillingCycle): number => {
+    switch (cycle) {
+      case 'monthly':
+        return monthlyPrice;
+      case 'quarterly':
+        return monthlyPrice * 3;
+      case 'semiannually':
+        return monthlyPrice * 6;
+      case 'annually':
+        return monthlyPrice * 12;
+      default:
+        return monthlyPrice;
+    }
+  };
+
   if (!subscription) {
     return (
       <Card>
@@ -305,7 +355,7 @@ export default function SubscriptionManagement({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="create-monthly-price">Valor Mensal</Label>
+                  <Label htmlFor="create-monthly-price">Valor Mensal (Base)</Label>
                   <Input
                     id="create-monthly-price"
                     type="number"
@@ -313,6 +363,37 @@ export default function SubscriptionManagement({
                     value={createForm.monthly_price}
                     onChange={(e) => setCreateForm({ ...createForm, monthly_price: parseFloat(e.target.value) })}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="create-billing-cycle">Periodicidade do Plano</Label>
+                  <Select
+                    value={createForm.billing_cycle}
+                    onValueChange={(value) => {
+                      const newCycle = value as BillingCycle;
+                      setCreateForm({
+                        ...createForm,
+                        billing_cycle: newCycle,
+                        next_payment_date: calculateNextPaymentDate(createForm.start_date, newCycle)
+                      });
+                    }}
+                  >
+                    <SelectTrigger id="create-billing-cycle">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Mensal</SelectItem>
+                      <SelectItem value="quarterly">Trimestral (3 meses)</SelectItem>
+                      <SelectItem value="semiannually">Semestral (6 meses)</SelectItem>
+                      <SelectItem value="annually">Anual (12 meses)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Valor total: {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: currency,
+                    }).format(calculateTotalPrice(createForm.monthly_price, createForm.billing_cycle))}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -421,7 +502,7 @@ export default function SubscriptionManagement({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-monthly-price">Valor Mensal</Label>
+                  <Label htmlFor="edit-monthly-price">Valor Mensal (Base)</Label>
                   <Input
                     id="edit-monthly-price"
                     type="number"
@@ -429,6 +510,35 @@ export default function SubscriptionManagement({
                     value={editForm.monthly_price}
                     onChange={(e) => setEditForm({ ...editForm, monthly_price: parseFloat(e.target.value) })}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-billing-cycle">Periodicidade do Plano</Label>
+                  <Select
+                    value={editForm.billing_cycle}
+                    onValueChange={(value) => {
+                      setEditForm({
+                        ...editForm,
+                        billing_cycle: value
+                      });
+                    }}
+                  >
+                    <SelectTrigger id="edit-billing-cycle">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Mensal</SelectItem>
+                      <SelectItem value="quarterly">Trimestral (3 meses)</SelectItem>
+                      <SelectItem value="semiannually">Semestral (6 meses)</SelectItem>
+                      <SelectItem value="annually">Anual (12 meses)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Valor total: {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: currency,
+                    }).format(calculateTotalPrice(editForm.monthly_price, editForm.billing_cycle as BillingCycle))}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -497,12 +607,27 @@ export default function SubscriptionManagement({
               <div className="font-semibold">{subscription.plan_name}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground mb-1">Valor Mensal</div>
+              <div className="text-sm text-muted-foreground mb-1">Periodicidade</div>
+              <Badge variant="outline">
+                {getBillingCycleLabel(subscription.billing_cycle)}
+              </Badge>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Valor Mensal (Base)</div>
               <div className="font-semibold">
                 {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
                   currency: currency,
                 }).format(subscription.monthly_price)}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Valor Total ({getBillingCycleLabel(subscription.billing_cycle)})</div>
+              <div className="font-semibold text-lg text-primary">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: currency,
+                }).format(calculateTotalPrice(subscription.monthly_price, subscription.billing_cycle))}
               </div>
             </div>
             <div>

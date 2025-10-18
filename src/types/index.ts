@@ -110,12 +110,14 @@ export interface StorefrontSettings {
 export type SubscriptionStatus = 'active' | 'pending' | 'cancelled' | 'suspended';
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';
 export type PaymentMethodStatus = 'completed' | 'pending' | 'failed' | 'refunded';
+export type BillingCycle = 'monthly' | 'quarterly' | 'semiannually' | 'annually';
 
 export interface Subscription {
   id: string;
   user_id: string;
   plan_name: string;
   monthly_price: number;
+  billing_cycle: BillingCycle;
   status: SubscriptionStatus;
   payment_status: PaymentStatus;
   start_date: string;
